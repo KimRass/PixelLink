@@ -27,3 +27,25 @@ def get_label(csv_path):
         canvas[row.bbox_y1: row.bbox_y2, row.bbox_x1: row.bbox_x2] = idx
     return canvas
 label = get_label(csv_path)
+
+
+csv_path = "/Users/jongbeomkim/Desktop/workspace/scene_text_renderer/textual_attribute_recognition/koen/data/701_2471.csv"
+img_path = "/Users/jongbeomkim/Desktop/workspace/scene_text_renderer/textual_attribute_recognition/koen/data/701_2471_ori.jpg"
+
+bboxes = pd.read_csv(csv_path)
+
+h, w, _ = img.shape
+summed = np.zeros((h, w, 1), dtype="uint16")
+textboxes = list()
+for row in bboxes.itertuples():
+    canvas = np.zeros((h, w, 1), dtype="uint8")
+    canvas[row.ymin: row.ymax, row.xmin: row.xmax] = 1
+    textboxes.append(canvas)
+    summed += canvas
+temp = ((summed == 1).astype("uint8") * 255)[..., 0]
+show_image(img, temp, 0.7)
+
+image = Image.open(img_path).convert("RGB")
+img = np.array(image)
+
+canvas = np.zeros_like(img, dtype="uint8")

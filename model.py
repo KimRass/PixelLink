@@ -6,47 +6,8 @@ from torchvision.models import vgg16_bn, VGG16_BN_Weights
 __all__ = ["PixelLink2s"]
 
 
-# class VGG(nn.Module):
-#     def __init__(self,pretrained):
-#         super(VGG, self).__init__()
-#         self.backbone = models.vgg16_bn(pretrained=pretrained).features
-#         self.s1 = self.backbone[0:7]
-#         self.s2 = self.backbone[7:14]
-#         self.s3 = self.backbone[14:24]
-#         self.s4 = self.backbone[24:34]
-#         self.s5 = self.backbone[34:]
-#         self.s6 = nn.Sequential(
-#             conv3x3_bn_relu(512, 512),
-#             conv3x3_bn_relu(512, 512),
-#             conv3x3_bn_relu(512, 512))
-
-#     def forward(self, x):
-#         s1 = self.s1(x)
-#         s2 = self.s2(s1)
-#         s3 = self.s3(s2)
-#         s4 = self.s4(s3)
-#         s5 = self.s5(s4)
-#         s6 = self.s6(s5)
-#         return s1, s2, s3, s4, s5, s6
-
-
 def conv1x1(in_channels, out_channels, stride=1, bias=False):
     return nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, padding=0, bias=bias)
-
-
-def conv1x1_sigmoid(in_channels, out_channels, stride=1):
-    return nn.Sequential(
-        conv1x1(in_channels, out_channels, stride),
-        nn.Sigmoid(),
-    )
-
-
-def conv1x1_bn_relu(in_channels, out_channels, stride=1):
-    return nn.Sequential(
-        conv1x1(in_channels, out_channels, stride),
-        nn.BatchNorm2d(out_channels),
-        nn.ReLU(inplace=True),
-    )
 
 
 def conv3x3(in_channels, out_channels, stride=1, bias=False):
@@ -75,9 +36,9 @@ class VGG16(nn.Module):
         # "All pooling layers except pool5 take a stride of $2$, and pool5 takes $1$."
         # Figure 3: Structure of PixelLink+VGG16 2s. fc6 and fc7 are converted into convolutional layers.
         self.block = nn.Sequential(
-            conv3x3_bn_relu(512, 512), # 'fc6'
-            conv3x3_bn_relu(512, 512), # 'fc7'
-        )
+            conv3x3_bn_relu(512, 512),
+            conv3x3_bn_relu(512, 512),
+        ) # 'fc6', 'fc7'
 
     def forward(self, x): # `(b, 3, h, w)`
         x = self.conv_stage1(x)
@@ -91,7 +52,7 @@ class VGG16(nn.Module):
 
 
 # "Two settings of feature fusion layers are implemented:
-# {conv2_2, conv3_3, conv4_3, conv5_3, fc_7}, and {conv3_3, conv4_3, conv5_3, fc_7},
+# {'conv2_2', 'conv3_3', 'conv4_3', 'conv5_3', 'fc_7'}, and {conv3_3, conv4_3, conv5_3, fc_7},
 # denoted as 'PixelLink + VGG16 2s', and 'PixelLink + VGG16 4s', respectively. The resolution
 # of '2s' predictions is a half of the original image, and '4s' is a quarter."
 class PixelLink2s(nn.Module):
@@ -102,11 +63,11 @@ class PixelLink2s(nn.Module):
 
         # 'conv 1x1, 2(16)' stands for a 1x1 convolutional layer with 2 or 16 kernels,
         # for text/non-text prediction or link prediction individually."
-        self.cls_conv1 = conv1x1(128, 2)
-        self.cls_conv2 = conv1x1(256, 2)
-        self.cls_conv3 = conv1x1(512, 2)
-        self.cls_conv4 = conv1x1(512, 2)
-        self.cls_conv5 = conv1x1(512, 2)
+        self.pixel_conv1 = conv1x1(128, 2)
+        self.pixel_conv2 = conv1x1(256, 2)
+        self.pixel_conv3 = conv1x1(512, 2)
+        self.pixel_conv4 = conv1x1(512, 2)
+        self.pixel_conv5 = conv1x1(512, 2)
 
         self.link_conv1 = conv1x1(128, 16)
         self.link_conv2 = conv1x1(256, 16)
@@ -125,13 +86,14 @@ class PixelLink2s(nn.Module):
 
         # "The size of 'fc7' is the same as 'conv5_3', and no upsampling is needed when adding scores
         # from these two layers.
-        cls = self.cls_conv5(x5) + self.cls_conv4(x4) # `(b, 2, h // 16, w // 16)`
-        cls = self._upsample(cls) # `(b, 2, h // 8, w // 8)`
-        cls += self.cls_conv3(x3) # `(b, 2, h // 8, w // 8)`
-        cls = self._upsample(cls) # `(b, 2, h // 4, w // 4)`
-        cls += self.cls_conv2(x2) # `(b, 2, h // 4, w // 4)`
-        cls = self._upsample(cls) # `(b, 2, h // 2, w // 2)`
-        cls += self.cls_conv1(x1) # `(b, 2, h // 2, w // 2)`
+        pixel = self.pixel_conv5(x5) + self.pixel_conv4(x4) # `(b, 2, h // 16, w // 16)`
+        pixel = self._upsample(pixel) # `(b, 2, h // 8, w // 8)`
+        pixel += self.pixel_conv3(x3) # `(b, 2, h // 8, w // 8)`
+        pixel = self._upsample(pixel) # `(b, 2, h // 4, w // 4)`
+        pixel += self.pixel_conv2(x2) # `(b, 2, h // 4, w // 4)`
+        pixel = self._upsample(pixel) # `(b, 2, h // 2, w // 2)`
+        pixel += self.pixel_conv1(x1) # `(b, 2, h // 2, w // 2)`
+        pixel = F.softmax(pixel, dim=1)
 
         link = self.link_conv5(x5) + self.link_conv4(x4)  # `(b, 2, h // 16, w // 16)`
         link = self._upsample(link) # `(b, 2, h // 8, w // 8)`
@@ -140,11 +102,19 @@ class PixelLink2s(nn.Module):
         link += self.link_conv2(x2) # `(b, 2, h // 4, w // 4)`
         link = self._upsample(link) # `(b, 2, h // 2, w // 2)`
         link += self.link_conv1(x1) # `(b, 2, h // 2, w // 2)`
-        return cls, link
+        for i in range(8):
+            link[:, i: i + 2, ...] = F.softmax(link[:, i: i + 2, ...], dim=1)
+        return pixel, link
 
 
 if __name__ == "__main__":
     model = PixelLink2s()
     x = torch.randn(2, 3, 448, 448)
-    cls_pred, link_pred = model(x)
-    cls_pred.shape, link_pred.shape
+    pixel_pred, link_pred = model(x)
+    for i in range(8):
+        link_pred[:, i: i + 2, ...] = F.softmax(link_pred[:, i: i + 2, ...], dim=1)
+        link_pred[:, i: i + 2, ...].sum(dim=1)
+    pixel_pred.shape, link_pred.shape
+
+
+# "Softmax is used in both, so their outputs have 1*2=2 and 8*2=16 channels, respectively."

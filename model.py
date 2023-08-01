@@ -5,6 +5,8 @@ from torchvision.models import vgg16_bn, VGG16_BN_Weights
 
 __all__ = ["PixelLink2s"]
 
+N_NEIGHBORS = 8
+
 
 def conv1x1(in_channels, out_channels, stride=1, bias=False):
     return nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, padding=0, bias=bias)
@@ -81,7 +83,6 @@ class PixelLink2s(nn.Module):
         return x
         
     def forward(self, x): # `(b, 3, h, w)`
-        x = torch.randn(2, 3, 448, 448)
         x1, x2, x3, x4, x5 = self.backbone(x)
 
         # "The size of 'fc7' is the same as 'conv5_3', and no upsampling is needed when adding scores
@@ -93,6 +94,7 @@ class PixelLink2s(nn.Module):
         pixel += self.pixel_conv2(x2) # `(b, 2, h // 4, w // 4)`
         pixel = self._upsample(pixel) # `(b, 2, h // 2, w // 2)`
         pixel += self.pixel_conv1(x1) # `(b, 2, h // 2, w // 2)`
+        # "Softmax is used in both."
         pixel = F.softmax(pixel, dim=1)
 
         link = self.link_conv5(x5) + self.link_conv4(x4)  # `(b, 2, h // 16, w // 16)`
@@ -102,19 +104,16 @@ class PixelLink2s(nn.Module):
         link += self.link_conv2(x2) # `(b, 2, h // 4, w // 4)`
         link = self._upsample(link) # `(b, 2, h // 2, w // 2)`
         link += self.link_conv1(x1) # `(b, 2, h // 2, w // 2)`
-        for i in range(8):
+        for i in range(0, N_NEIGHBORS * 2, 2):
             link[:, i: i + 2, ...] = F.softmax(link[:, i: i + 2, ...], dim=1)
         return pixel, link
 
 
 if __name__ == "__main__":
-    model = PixelLink2s()
     x = torch.randn(2, 3, 448, 448)
+    model = PixelLink2s()
     pixel_pred, link_pred = model(x)
-    for i in range(8):
-        link_pred[:, i: i + 2, ...] = F.softmax(link_pred[:, i: i + 2, ...], dim=1)
+    pixel_pred.sum(dim=1)
+    for i in range(0, N_NEIGHBORS * 2, 2):
         link_pred[:, i: i + 2, ...].sum(dim=1)
     pixel_pred.shape, link_pred.shape
-
-
-# "Softmax is used in both, so their outputs have 1*2=2 and 8*2=16 channels, respectively."

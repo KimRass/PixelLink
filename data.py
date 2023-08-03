@@ -50,6 +50,19 @@ def get_pixel_gt(w, h, bboxes): # Index 0: None-text, Index 1: Text
     return pixel_gt
 
 
+def get_textboxes(w, h, bboxes, pixel_gt): # Index 0: None-text, Index 1: Text
+    pixel_gt = pixel_gt.bool()
+
+    tboxes = list()
+    for row in bboxes.itertuples():
+        tbox = torch.zeros((h, w), dtype=torch.bool)
+        tbox[row.ymin: row.ymax, row.xmin: row.xmax] = True
+        tbox = tbox * pixel_gt
+
+        tboxes.append(tbox)
+    return tboxes
+
+
 def get_text_seg_map(w, h, pixel_gt):
     # canvas = np.zeros((h, w), dtype="uint16")
     canvas = np.zeros((h, w), dtype="uint8")

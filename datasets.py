@@ -80,17 +80,28 @@ class PixelLinkIC15Dataset(ICDAR15Dataset):
         # self.all_images = torch.Tensor(self.all_images)
 
     def __getitem__(self, index):
-        # print(index, end=" ")
         if self.train:
             image, label = self.train_data_transform(index)
         else:
             image, label = self.test_data_transform(index)
         image = torch.Tensor(image)
 
-        pixel_mask, neg_pixel_mask, pixel_pos_weight, link_mask = \
-            PixelLinkIC15Dataset.label_to_mask_and_pixel_pos_weight(label, list(image.shape[1:]), version="2s")
-        return {'image': image, 'pixel_mask': pixel_mask, 'neg_pixel_mask': neg_pixel_mask, 'label': label,
-                'pixel_pos_weight': pixel_pos_weight, 'link_mask': link_mask}
+        (
+            pixel_mask,
+            neg_pixel_mask,
+            pixel_pos_weight,
+            link_mask
+        ) = PixelLinkIC15Dataset.label_to_mask_and_pixel_pos_weight(
+            label, list(image.shape[1:]), version="2s"
+        )
+        return {
+            'image': image,
+            'pixel_mask': pixel_mask,
+            'neg_pixel_mask': neg_pixel_mask,
+            'label': label,
+            'pixel_pos_weight': pixel_pos_weight,
+            'link_mask': link_mask
+        }
 
     def test_data_transform(self, index):
         img = self.read_image(self.images_dir, index)
@@ -331,7 +342,11 @@ if __name__ == '__main__':
     )
     # dict_keys(['image', 'pixel_mask', 'neg_pixel_mask', 'label', 'pixel_pos_weight', 'link_mask'])
     dataset[0].keys()
-    dataset[0]["image"]
+    # dataset[0]["image"].min(), dataset[0]["image"].max()
+    dataset[0]["pixel_mask"].sum(), dataset[0]["neg_pixel_mask"].sum()
+
+    dataset[0]["pixel_mask"].numel()
+    317 + 64963
 
     end = time.time()
     print("time to read datasets: " + str(end - start)) # about 0.12s

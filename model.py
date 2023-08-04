@@ -113,7 +113,9 @@ if __name__ == "__main__":
     x = torch.randn(2, 3, 448, 448)
     model = PixelLink2s()
     pixel_pred, link_pred = model(x)
-    pixel_pred.sum(dim=1)
-    for i in range(0, N_NEIGHBORS * 2, 2):
-        link_pred[:, i: i + 2, ...].sum(dim=1)
-    pixel_pred.shape, link_pred.shape
+    pixel_pred.shape
+
+    # pixel_pred.sum(dim=1)
+    # for i in range(0, N_NEIGHBORS * 2, 2):
+    #     link_pred[:, i: i + 2, ...].sum(dim=1)
+    # pixel_pred.shape, link_pred.shape

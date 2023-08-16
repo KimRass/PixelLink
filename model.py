@@ -112,8 +112,9 @@ class PixelLink2s(nn.Module):
 
 
 if __name__ == "__main__":
-    x = torch.randn(2, 3, 448, 448)
     model = PixelLink2s()
+    # x = torch.randn(2, 3, 3536, 2512)
+    x = torch.randn(2, 3, 2512, 512)
     pixel_pred, link_pred = model(x)
     pixel_pred.shape
 

@@ -10,6 +10,7 @@
 # are positive. This linking process can be implemented using disjoint-set data structure."
 
 import torch
+import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as T
 import torchvision.transforms.functional as TF
@@ -22,6 +23,7 @@ from pathlib import Path
 import random
 
 from utils import draw_bboxes, pos_pixel_mask_to_pil
+from infer import _pad_input_image
 
 np.set_printoptions(edgeitems=20, linewidth=220, suppress=False)
 torch.set_printoptions(precision=4, edgeitems=12, linewidth=220)
@@ -58,16 +60,16 @@ IMG_SIZE = 512
 
 
 class MenuImageDataset(Dataset):
-    def __init__(self, csv_dir):
+    def __init__(self, csv_dir, split="train"):
 
         self.csv_paths = list(Path(csv_dir).glob("*.csv"))
+        self.split = split
 
     def get_bboxes(self, csv_path):
         bboxes = pd.read_csv(csv_path, usecols=["xmin", "ymin", "xmax", "ymax"])
         bboxes.rename({"xmin": "x1", "ymin": "y1", "xmax": "x2", "ymax": "y2"}, axis=1, inplace=True)
         bboxes["area"] = (bboxes["x2"] - bboxes["x1"]) * (bboxes["y2"] - bboxes["y1"])
         return bboxes
-
 
     def load_image(self, csv_path):
         bboxes = pd.read_csv(csv_path, usecols=["image_url"])
@@ -128,7 +130,7 @@ class MenuImageDataset(Dataset):
 
     def _randomly_scale(self, image, bboxes, area_thresh=1500):
         """
-        확대는 하지 않고 축소만 하는데, 가장 작은 바운딩 박스가 최소 `area_thresh`의 면적을 같아지는 정도까지만 축소합니다.
+        확대는 하지 않고 축소만 하는데, 가장 작은 바운딩 박스의 넓이가 최소한 `area_thresh`와 같아지는 정도까지만 축소합니다.
         """
         min_area = bboxes["area"].min()
         scale = random.uniform(area_thresh / min_area, 1)
@@ -166,25 +168,42 @@ class MenuImageDataset(Dataset):
 
         bboxes = self.get_bboxes(csv_path)
         image = self.load_image(csv_path)
-        w, h = image.size
-        image = image.resize(size=(w // 4, h // 4), resample=Image.LANCZOS)
 
-        # image, bboxes = self._randomly_scale(image=image, bboxes=bboxes)
-        image, bboxes = self._randomly_shift_then_crop(image=image, bboxes=bboxes)
-        image.show()
+        if self.split == "train":
+            # w, h = image.size
+            # image = image.resize(size=(w // 4, h // 4), resample=Image.LANCZOS)
+            image, bboxes = self._randomly_scale(image=image, bboxes=bboxes)
+            image, bboxes = self._randomly_shift_then_crop(image=image, bboxes=bboxes)
+            # image.show()
 
         pos_pixel_mask = self._get_pos_pixel_mask(image=image, bboxes=bboxes)
+
         pixel_gt = pos_pixel_mask.unsqueeze(0)
-        pixel_weight = self._get_pixel_pixel_weight_for_pos_pixels(bboxes=bboxes, pos_pixel_mask=pos_pixel_mask)
+        pixel_gt = F.interpolate(
+            pixel_gt.float().unsqueeze(0), scale_factor=0.5, mode="nearest"
+        )[0].long()
+
+        if self.split == "train":
+            pixel_weight = self._get_pixel_pixel_weight_for_pos_pixels(
+                bboxes=bboxes, pos_pixel_mask=pos_pixel_mask
+            )
+            pixel_weight = F.interpolate(
+                pixel_weight.unsqueeze(0), scale_factor=0.5, mode="nearest"
+            )[0]
 
         image = TF.to_tensor(image)
         # image = TF.normalize(image, mean=(0.457, 0.437, 0.404), std=(0.275, 0.271, 0.284))
         image = TF.normalize(image, mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
-        return {
+        if self.split != "train":
+            image = _pad_input_image(image.unsqueeze(0))[0]
+
+        data = {
             "image": image,
             "pixel_gt": pixel_gt,
-            "pixel_weight": pixel_weight,
         }
+        if self.split == "train":
+            data["pixel_weight"] = pixel_weight
+        return data
 
 
 if __name__ == "__main__":

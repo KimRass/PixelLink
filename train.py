@@ -39,7 +39,7 @@ train_dl = DataLoader(
     pin_memory=True,
     drop_last=True,
 )
-val_ds = MenuImageDataset(csv_dir=config.CSV_DIR, , area_thresh=config.AREA_THRESH, split="val")
+val_ds = MenuImageDataset(csv_dir=config.CSV_DIR, area_thresh=config.AREA_THRESH, split="val")
 val_dl = DataLoader(
     val_ds, batch_size=1, num_workers=config.N_WORKERS, pin_memory=True, drop_last=True
 )

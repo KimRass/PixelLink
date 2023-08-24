@@ -94,5 +94,5 @@ if __name__ == "__main__":
 
                 val_pixel_pred = model(val_image.unsqueeze(0))
                 iou = get_pixel_iou(val_pixel_pred, val_pixel_gt)
-                print(f"""[ {epoch} ][ {step} ][ Loss: {running_loss / len(train_dl):.4f} ][ IoU: {iou.item():.3f} ]""")
+                print(f"""[ {epoch} ][ {step} ][ Loss: {running_loss / len(train_dl):.4f} ][ IoU: {iou:.3f} ]""")
             model.train()

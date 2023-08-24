@@ -17,6 +17,7 @@ from loss import InstanceBalancedCELoss
 print(f"""SEED = {config.SEED}""")
 print(f"""N_WORKERS = {config.N_WORKERS}""")
 print(f"""BATCH_SIZE = {config.BATCH_SIZE}""")
+print(f"""DEVICE = {config.DEVICE}""")
 
 model = PixelLink2s().to(config.DEVICE)
 

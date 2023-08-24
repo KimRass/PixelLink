@@ -21,8 +21,8 @@ N_WORKERS = 4
 BATCH_SIZE = 1
 FEAT_MAP_SIZE = IMG_SIZE // 2
 
-# if torch.cuda.is_available():
-#     DEVICE = torch.device("cuda")
-# else:
-#     DEVICE = torch.device("cpu")
-DEVICE = torch.device("cpu")
+if torch.cuda.is_available():
+    DEVICE = torch.device("cuda")
+else:
+    DEVICE = torch.device("cpu")
+# DEVICE = torch.device("cpu")

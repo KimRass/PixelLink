@@ -31,7 +31,7 @@ optim = SGD(
 )
 optim.param_groups[0]["lr"] = config.FIN_LR
 
-train_ds = MenuImageDataset(csv_dir=config.CSV_DIR, split="train", area_thresh=config.AREA_THRESHOLD)
+train_ds = MenuImageDataset(csv_dir=config.CSV_DIR, area_thresh=config.AREA_THRESH, split="train")
 train_dl = DataLoader(
     train_ds,
     batch_size=config.BATCH_SIZE,

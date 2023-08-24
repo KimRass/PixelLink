@@ -61,11 +61,11 @@ IMG_SIZE = 1024
 
 
 class MenuImageDataset(Dataset):
-    def __init__(self, csv_dir, split="train", area_thresh):
+    def __init__(self, csv_dir, area_thresh, split="train"):
 
         self.csv_paths = list(Path(csv_dir).glob("*.csv"))
-        self.split = split
         self.area_thresh = area_thresh
+        self.split = split
 
     def get_bboxes(self, csv_path):
         bboxes = pd.read_csv(csv_path, usecols=["xmin", "ymin", "xmax", "ymax"])

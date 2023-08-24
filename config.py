@@ -12,7 +12,7 @@ CSV_DIR = "/home/ubuntu/project/cv/text_segmenter/data"
 ### Optimizer
 # "Optimized by SGD with $momentum = 0.9$ and $weight_decay = 5 \times 10^{-4}$.
 MOMENTUM = 0.9
-WEIGHT_DECAY = 5 * 1e-4
+WEIGHT_DECAY = 5e-4
 # "Learning rate is set to $10^{-3}$ for the first 100 iterations, and fixed at $10^{-2}$ for the rest."
 INIT_LR = 1e-3
 FIN_LR = 1e-2

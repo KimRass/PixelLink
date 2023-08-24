@@ -61,10 +61,11 @@ IMG_SIZE = 1024
 
 
 class MenuImageDataset(Dataset):
-    def __init__(self, csv_dir, split="train"):
+    def __init__(self, csv_dir, split="train", area_thresh):
 
         self.csv_paths = list(Path(csv_dir).glob("*.csv"))
         self.split = split
+        self.area_thresh = area_thresh
 
     def get_bboxes(self, csv_path):
         bboxes = pd.read_csv(csv_path, usecols=["xmin", "ymin", "xmax", "ymax"])
@@ -129,12 +130,12 @@ class MenuImageDataset(Dataset):
         pos_pixel_mask = (canvas == 1)
         return pos_pixel_mask
 
-    def _randomly_scale(self, image, bboxes, area_thresh=1500):
+    def _randomly_scale(self, image, bboxes):
         """
         확대는 하지 않고 축소만 하는데, 가장 작은 바운딩 박스의 넓이가 최소한 `area_thresh`와 같아지는 정도까지만 축소합니다.
         """
         min_area = bboxes["area"].min()
-        scale = random.uniform(area_thresh / min_area, 1)
+        scale = random.uniform(self.area_thresh / min_area, 1)
         
         w, h = image.size
         size = (round(h * scale), round(w * scale))

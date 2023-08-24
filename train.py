@@ -31,7 +31,7 @@ optim = SGD(
 )
 optim.param_groups[0]["lr"] = config.FIN_LR
 
-train_ds = MenuImageDataset(csv_dir=config.CSV_DIR, split="train")
+train_ds = MenuImageDataset(csv_dir=config.CSV_DIR, split="train", area_thresh=config.AREA_THRESHOLD)
 train_dl = DataLoader(
     train_ds,
     batch_size=config.BATCH_SIZE,
@@ -46,8 +46,7 @@ val_dl = DataLoader(
 
 
 if __name__ == "__main__":
-    N_EPOCHS = 100
-    for epoch in range(1, N_EPOCHS + 1):
+    for epoch in range(1, config.N_EPOCHS + 1):
         for step, batch in enumerate(train_dl, start=1):
             image = batch["image"].to(config.DEVICE)
 

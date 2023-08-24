@@ -14,6 +14,10 @@ from model import PixelLink2s
 from data import MenuImageDataset
 from loss import InstanceBalancedCELoss
 
+print(f"""SEED = {config.SEED}""")
+print(f"""N_WORKERS = {config.N_WORKERS}""")
+print(f"""BATCH_SIZE = {config.BATCH_SIZE}""")
+
 model = PixelLink2s().to(config.DEVICE)
 
 crit = InstanceBalancedCELoss()
@@ -57,9 +61,10 @@ if __name__ == "__main__":
             optim.step()
 
             ## Validate.
+            # for batch in enumerate(val_dl, start=1):
             val_data = val_ds[0]
-            val_image = val_data["image"]
-            val_pixel_gt = val_data["pixel_gt"]
+            val_image = val_data["image"].to(config.DEVICE)
+            val_pixel_gt = val_data["pixel_gt"].to(config.DEVICE)
             # val_image.shape, val_pixel_gt.shape
 
             val_pixel_pred = model(val_image.unsqueeze(0))

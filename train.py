@@ -61,9 +61,9 @@ if __name__ == "__main__":
             loss.backward()
             optim.step()
 
+            ### Validate.
             model.eval()
             with torch.no_grad():
-                ## Validate.
                 # for batch in enumerate(val_dl, start=1):
                 val_data = val_ds[0]
                 val_image = val_data["image"].to(config.DEVICE)
@@ -75,3 +75,4 @@ if __name__ == "__main__":
                 # val_pixel_gt.shape, val_pixel_pred.shape
                 iou = ((val_pixel_gt == 1) & (val_pixel_pred == 1)).sum() / ((val_pixel_gt == 1) | (val_pixel_pred == 1)).sum()
                 print(f"""[ {epoch} ][ {step} ][ Loss: {loss.item():.4f} ][ IoU: {iou.item():.3f} ]""")
+            model.train()

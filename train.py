@@ -14,6 +14,24 @@ from model import PixelLink2s
 from data import MenuImageDataset
 from loss import InstanceBalancedCELoss
 
+
+def validate(model, val_dl):
+    model.eval()
+    with torch.no_grad():
+        for batch in enumerate(val_dl, start=1):
+            # val_data = val_ds[0]
+            image = batch["image"].to(config.DEVICE)
+            pixel_gt = batch["pixel_gt"].to(config.DEVICE)
+            # image.shape, pixel_gt.shape
+
+            pixel_pred = model(image.unsqueeze(0))
+            pixel_pred = (pixel_pred[:, 1, ...] >= 0.5).long()
+
+            iou = ((pixel_gt == 1) & (pixel_pred == 1)).sum() / ((pixel_gt == 1) | (pixel_pred == 1)).sum()
+            print(f"""[ {epoch} ][ {step} ][ Loss: {loss.item():.4f} ][ IoU: {iou.item():.3f} ]""")
+    model.train()
+
+
 print(f"""SEED = {config.SEED}""")
 print(f"""N_WORKERS = {config.N_WORKERS}""")
 print(f"""BATCH_SIZE = {config.BATCH_SIZE}""")
@@ -41,7 +59,7 @@ train_dl = DataLoader(
 )
 val_ds = MenuImageDataset(csv_dir=config.CSV_DIR, area_thresh=config.AREA_THRESH, split="val")
 val_dl = DataLoader(
-    val_ds, batch_size=1, num_workers=config.N_WORKERS, pin_memory=True, drop_last=True
+    val_ds, batch_size=2, num_workers=config.N_WORKERS, pin_memory=True, drop_last=True
 )
 
 

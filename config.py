@@ -20,7 +20,7 @@ FIN_LR = 1e-2
 ### Training
 SEED = 33
 N_WORKERS = 4
-BATCH_SIZE = 1
+BATCH_SIZE = 2
 FEAT_MAP_SIZE = IMG_SIZE // 2
 if torch.cuda.is_available():
     DEVICE = torch.device("cuda")

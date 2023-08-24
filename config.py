@@ -28,3 +28,4 @@ else:
     DEVICE = torch.device("cpu")
 # DEVICE = torch.device("cpu")
 N_EPOCHS = 300
+N_EVAL_STEPS = 10

@@ -13,6 +13,7 @@ import config
 from model import PixelLink2s
 from data import MenuImageDataset
 from loss import InstanceBalancedCELoss
+from evaluate import get_pixel_iou
 
 
 def validate(model, val_dl):
@@ -25,9 +26,7 @@ def validate(model, val_dl):
             # image.shape, pixel_gt.shape
 
             pixel_pred = model(image.unsqueeze(0))
-            pixel_pred = (pixel_pred[:, 1, ...] >= 0.5).long()
-
-            iou = ((pixel_gt == 1) & (pixel_pred == 1)).sum() / ((pixel_gt == 1) | (pixel_pred == 1)).sum()
+            iou = get_pixel_iou(pixel_pred, pixel_gt)
             print(f"""[ {epoch} ][ {step} ][ Loss: {loss.item():.4f} ][ IoU: {iou.item():.3f} ]""")
     model.train()
 
@@ -78,7 +77,8 @@ if __name__ == "__main__":
             loss.backward()
             optim.step()
 
-            ### Validate.
+        ### Validate.
+        if (epoch % config.N_VAL_EPOCHS == 0) or (epoch == config.N_EPOCHS):
             model.eval()
             with torch.no_grad():
                 # for batch in enumerate(val_dl, start=1):
@@ -88,8 +88,6 @@ if __name__ == "__main__":
                 # val_image.shape, val_pixel_gt.shape
 
                 val_pixel_pred = model(val_image.unsqueeze(0))
-                val_pixel_pred = (val_pixel_pred[:, 1, ...] >= 0.5).long()
-                # val_pixel_gt.shape, val_pixel_pred.shape
-                iou = ((val_pixel_gt == 1) & (val_pixel_pred == 1)).sum() / ((val_pixel_gt == 1) | (val_pixel_pred == 1)).sum()
+                iou = get_pixel_iou(val_pixel_pred, val_pixel_gt)
                 print(f"""[ {epoch} ][ {step} ][ Loss: {loss.item():.4f} ][ IoU: {iou.item():.3f} ]""")
             model.train()

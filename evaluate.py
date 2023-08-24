@@ -8,4 +8,4 @@ def get_pixel_iou(pixel_pred, pixel_gt):
     intersec = pixel_pred & pixel_gt
     union = pixel_pred | pixel_gt
     iou = intersec / union
-    return iou
+    return iou.item()

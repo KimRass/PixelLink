@@ -4,6 +4,8 @@ import torch
 NEG_POS_RATIO = 3
 N_NEIGHBORS = 8
 IMG_SIZE = 1024
+CSV_DIR = "/home/ubuntu/project/cv/text_segmenter/data"
+# CSV_DIR = "/Users/jongbeomkim/Desktop/workspace/text_segmenter/data"
 
 ### Optimizer
 # "Optimized by SGD with $momentum = 0.9$ and $weight_decay = 5 \times 10^{-4}$.

@@ -64,6 +64,8 @@ val_dl = DataLoader(
 
 if __name__ == "__main__":
     for epoch in range(1, config.N_EPOCHS + 1):
+        running_loss = 0
+        # loss_cnt = 0
         for step, batch in enumerate(train_dl, start=1):
             image = batch["image"].to(config.DEVICE)
 
@@ -77,6 +79,9 @@ if __name__ == "__main__":
             loss.backward()
             optim.step()
 
+            running_loss += loss.item()
+            # loss_cnt += 1
+
         ### Validate.
         if (epoch % config.N_VAL_EPOCHS == 0) or (epoch == config.N_EPOCHS):
             model.eval()
@@ -89,5 +94,5 @@ if __name__ == "__main__":
 
                 val_pixel_pred = model(val_image.unsqueeze(0))
                 iou = get_pixel_iou(val_pixel_pred, val_pixel_gt)
-                print(f"""[ {epoch} ][ {step} ][ Loss: {loss.item():.4f} ][ IoU: {iou.item():.3f} ]""")
+                print(f"""[ {epoch} ][ {step} ][ Loss: {running_loss / len(train_dl):.4f} ][ IoU: {iou.item():.3f} ]""")
             model.train()

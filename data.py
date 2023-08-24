@@ -28,7 +28,8 @@ from infer import _pad_input_image
 np.set_printoptions(edgeitems=20, linewidth=220, suppress=False)
 torch.set_printoptions(precision=4, edgeitems=12, linewidth=220)
 
-IMG_SIZE = 512
+# IMG_SIZE = 512
+IMG_SIZE = 1024
 
 
 # def get_text_seg_map(w, h, pixel_gt):
@@ -89,7 +90,7 @@ class MenuImageDataset(Dataset):
         return tboxes
 
     # "A weight matrix, denoted by $W$, for all positive pixels and selected negative ones."
-    def _get_pixel_pixel_weight_for_pos_pixels(self, bboxes, pos_pixel_mask):
+    def _get_pixel_weight_for_pos_pixels(self, bboxes, pos_pixel_mask):
         def get_areas(tboxes):
             areas = [tbox.sum().item() for tbox in tboxes] # $S_{i}$
             return areas
@@ -174,7 +175,8 @@ class MenuImageDataset(Dataset):
             # image = image.resize(size=(w // 4, h // 4), resample=Image.LANCZOS)
             image, bboxes = self._randomly_scale(image=image, bboxes=bboxes)
             image, bboxes = self._randomly_shift_then_crop(image=image, bboxes=bboxes)
-            # image.show()
+        image = _pad_input_image(image)
+        # image.show()
 
         pos_pixel_mask = self._get_pos_pixel_mask(image=image, bboxes=bboxes)
 
@@ -184,7 +186,7 @@ class MenuImageDataset(Dataset):
         )[0].long()
 
         if self.split == "train":
-            pixel_weight = self._get_pixel_pixel_weight_for_pos_pixels(
+            pixel_weight = self._get_pixel_weight_for_pos_pixels(
                 bboxes=bboxes, pos_pixel_mask=pos_pixel_mask
             )
             pixel_weight = F.interpolate(
@@ -194,8 +196,6 @@ class MenuImageDataset(Dataset):
         image = TF.to_tensor(image)
         # image = TF.normalize(image, mean=(0.457, 0.437, 0.404), std=(0.275, 0.271, 0.284))
         image = TF.normalize(image, mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
-        if self.split != "train":
-            image = _pad_input_image(image.unsqueeze(0))[0]
 
         data = {
             "image": image,
@@ -207,17 +207,18 @@ class MenuImageDataset(Dataset):
 
 
 if __name__ == "__main__":
-    csv_dir = "/Users/jongbeomkim/Desktop/workspace/text_segmenter"
+    csv_dir = "/Users/jongbeomkim/Desktop/workspace/text_segmenter/data"
     ds = MenuImageDataset(csv_dir=csv_dir)
     N_WORKERS = 0
     dl = DataLoader(ds, batch_size=1, num_workers=N_WORKERS, pin_memory=True, drop_last=True)
-    data = next(iter(dl))
+    for _ in range(5):
+        data = next(iter(dl))
 
-    data = ds[0]
-    pixel_gt = data["pixel_gt"]
-    pixel_weight = data["pixel_weight"]
-    pixel_gt.shape
-    pixel_weight.shape
+#     data = ds[0]
+#     pixel_gt = data["pixel_gt"]
+#     pixel_weight = data["pixel_weight"]
+#     pixel_gt.shape
+#     pixel_weight.shape
 
 
 # # cls_logits = torch.stack((torch.Tensor(~pixel_gt), torch.Tensor(pixel_gt)))[None, ...].repeat(2, 1, 1, 1)

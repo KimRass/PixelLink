@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from einops import rearrange
 import numpy as np
 
-from data import get_textbox_masks, get_areas
+# from data import get_textbox_masks, get_areas
 
 np.set_printoptions(edgeitems=20, linewidth=220, suppress=False)
 torch.set_printoptions(precision=4, edgeitems=12, linewidth=220)

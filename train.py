@@ -60,15 +60,17 @@ if __name__ == "__main__":
             loss.backward()
             optim.step()
 
-            ## Validate.
-            # for batch in enumerate(val_dl, start=1):
-            val_data = val_ds[0]
-            val_image = val_data["image"].to(config.DEVICE)
-            val_pixel_gt = val_data["pixel_gt"].to(config.DEVICE)
-            # val_image.shape, val_pixel_gt.shape
+            model.eval()
+            with torch.no_grad():
+                ## Validate.
+                # for batch in enumerate(val_dl, start=1):
+                val_data = val_ds[0]
+                val_image = val_data["image"].to(config.DEVICE)
+                val_pixel_gt = val_data["pixel_gt"].to(config.DEVICE)
+                # val_image.shape, val_pixel_gt.shape
 
-            val_pixel_pred = model(val_image.unsqueeze(0))
-            val_pixel_pred = (val_pixel_pred[:, 1, ...] >= 0.5).long()
-            # val_pixel_gt.shape, val_pixel_pred.shape
-            iou = ((val_pixel_gt == 1) & (val_pixel_pred == 1)).sum() / ((val_pixel_gt == 1) | (val_pixel_pred == 1)).sum()
-            print(f"""[ {epoch} ][ {step} ][ Loss: {loss.item():.4f} ][ IoU: {iou.item():.3f} ]""")
+                val_pixel_pred = model(val_image.unsqueeze(0))
+                val_pixel_pred = (val_pixel_pred[:, 1, ...] >= 0.5).long()
+                # val_pixel_gt.shape, val_pixel_pred.shape
+                iou = ((val_pixel_gt == 1) & (val_pixel_pred == 1)).sum() / ((val_pixel_gt == 1) | (val_pixel_pred == 1)).sum()
+                print(f"""[ {epoch} ][ {step} ][ Loss: {loss.item():.4f} ][ IoU: {iou.item():.3f} ]""")

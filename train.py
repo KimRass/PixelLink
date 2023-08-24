@@ -9,48 +9,45 @@ from torch.optim import SGD
 from PIL import Image
 import torchvision.transforms.functional as TF
 
+import config
 from model import PixelLink2s
 from data import MenuImageDataset
 from loss import InstanceBalancedCELoss
 
-# "Optimized by SGD with $momentum = 0.9$ and $weight_decay = 5 \times 10^{-4}$.
-MOMENTUM = 0.9
-WEIGHT_DECAY = 5 * 1e-4
-# "Learning rate is set to $10^{-3}$ for the first 100 iterations, and fixed at $10^{-2}$ for the rest."
-INIT_LR = 1e-3
-FIN_LR = 1e-2
-N_WORKERS = 0
-BATCH_SIZE = 1
-# IMG_SIZE = 512
-IMG_SIZE = 1024
-FEAT_MAP_SIZE = IMG_SIZE // 2
-
-model = PixelLink2s()
+model = PixelLink2s().to(config.DEVICE)
 
 crit = InstanceBalancedCELoss()
 
 optim = SGD(
-    params=model.parameters(), lr=INIT_LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY,
+    params=model.parameters(),
+    lr=config.INIT_LR,
+    momentum=config.MOMENTUM,
+    weight_decay=config.WEIGHT_DECAY,
 )
-optim.param_groups[0]["lr"] = FIN_LR
+optim.param_groups[0]["lr"] = config.FIN_LR
 
-# csv_dir = "/Users/jongbeomkim/Desktop/workspace/text_segmenter/data"
-csv_dir = "/home/ubuntu/project/cv/text_segmenter/data"
-train_ds = MenuImageDataset(csv_dir=csv_dir, split="train")
-train_dl = DataLoader(train_ds, batch_size=BATCH_SIZE, num_workers=N_WORKERS, pin_memory=True, drop_last=True)
-val_ds = MenuImageDataset(csv_dir=csv_dir, split="val")
-val_dl = DataLoader(val_ds, batch_size=1, num_workers=N_WORKERS, pin_memory=False, drop_last=True)
+train_ds = MenuImageDataset(csv_dir=config.CSV_DIR, split="train")
+train_dl = DataLoader(
+    train_ds,
+    batch_size=config.BATCH_SIZE,
+    num_workers=config.N_WORKERS,
+    pin_memory=True,
+    drop_last=True,
+)
+val_ds = MenuImageDataset(csv_dir=config.CSV_DIR, split="val")
+val_dl = DataLoader(
+    val_ds, batch_size=1, num_workers=config.N_WORKERS, pin_memory=True, drop_last=True
+)
 
 
 if __name__ == "__main__":
     N_EPOCHS = 100
     for epoch in range(1, N_EPOCHS + 1):
         for step, batch in enumerate(train_dl, start=1):
-            # batch = next(iter(dl))
-            image = batch["image"]
+            image = batch["image"].to(config.DEVICE)
 
-            pixel_gt = batch["pixel_gt"]
-            pixel_weight = batch["pixel_weight"]
+            pixel_gt = batch["pixel_gt"].to(config.DEVICE)
+            pixel_weight = batch["pixel_weight"].to(config.DEVICE)
             # image.shape, pixel_gt.shape, pixel_weight.shape
 
             optim.zero_grad()

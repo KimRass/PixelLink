@@ -23,7 +23,7 @@ from pathlib import Path
 import random
 
 import config
-from utils import draw_bboxes, pos_pixel_mask_to_pil, _pad_input_image
+from utils import _pad_input_image
 
 np.set_printoptions(edgeitems=20, linewidth=220, suppress=False)
 torch.set_printoptions(precision=4, edgeitems=12, linewidth=220)
@@ -91,7 +91,8 @@ class MenuImageDataset(Dataset):
 
     # "Pixels within text instances are labeled as positive (i.e., text pixels), and otherwise
     # are labeled as negative (i.e., nontext pixels)."
-    def _get_pos_pixel_mask(self, image: Image.Image, bboxes: pd.DataFrame): # Index 0: Non-text, Index 1: Text
+    # Index 0: Non-text, Index 1: Text
+    def _get_pos_pixel_mask(self, image: Image.Image, bboxes: pd.DataFrame) -> torch.Tensor:
         w, h = image.size
         canvas = torch.zeros((h, w))
         for row in bboxes.itertuples():
@@ -133,6 +134,32 @@ class MenuImageDataset(Dataset):
         bboxes = bboxes[(bboxes["x1"] != bboxes["x2"]) & (bboxes["y1"] != bboxes["y2"])]
         return image, bboxes
 
+    def _get_text_seg_map(self, image: Image.Image, bboxes: pd.DataFrame, pos_pixels):
+        w, h = image.size
+        canvas = torch.zeros(size=(h, w), dtype=torch.long)
+        for idx, row in enumerate(bboxes.itertuples(), start=1):
+            canvas[row.y1: row.y2, row.x1: row.x2] = idx
+        return canvas * pos_pixels
+
+    def _get_pos_links(self, link_seg_map, pos_pixel_mask, stride=5):
+        ls = list()
+        for shift in [
+            (0, stride), # "Left"
+            (-stride, stride), # "Left-down"
+            (stride, stride), # "Left-up"
+            (0, -stride), # "Right"
+            (-stride, -stride), # "Right-down"
+            (stride, -stride), # "Right-up"
+            (stride, 0), # "Up"
+            (-stride, 0), # "Down"
+        ]:
+            shifted = torch.roll(link_seg_map, shifts=shift, dims=(0, 1))
+            shifted = (link_seg_map == shifted) * pos_pixel_mask
+
+            ls.append(shifted)
+        stacked = torch.stack(ls)
+        return stacked
+
     def __len__(self):
         return len(self.csv_paths)
 
@@ -143,8 +170,6 @@ class MenuImageDataset(Dataset):
         image = self.load_image(csv_path)
 
         if self.split == "train":
-            # w, h = image.size
-            # image = image.resize(size=(w // 4, h // 4), resample=Image.LANCZOS)
             image, bboxes = self._randomly_scale(image=image, bboxes=bboxes)
             image, bboxes = self._randomly_shift_then_crop(image=image, bboxes=bboxes)
         image = _pad_input_image(image)
@@ -165,12 +190,19 @@ class MenuImageDataset(Dataset):
                 pixel_weight.unsqueeze(0), scale_factor=self.scale_factor, mode="nearest"
             )[0]
 
+        link_seg_map = self._get_text_seg_map(image=image, bboxes=bboxes, pos_pixels=pos_pixel_mask)
+        link_gt = self._get_pos_links(link_seg_map=link_seg_map, pos_pixel_mask=pos_pixel_mask, stride=5)
+        link_gt = F.interpolate(
+            link_gt.float().unsqueeze(0), scale_factor=self.scale_factor, mode="nearest"
+        )[0].long()
+
         image = TF.to_tensor(image)
         image = TF.normalize(image, mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
 
         data = {
             "image": image,
             "pixel_gt": pixel_gt,
+            "link_gt": link_gt,
         }
         if self.split == "train":
             data["pixel_weight"] = pixel_weight

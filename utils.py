@@ -12,6 +12,8 @@ from tqdm.auto import tqdm
 from time import time
 from datetime import timedelta
 
+import config
+
 
 def _pad_input_image(image):
     """
@@ -112,12 +114,15 @@ def postprocess_pixel_pred(pixel_pred):
     return pixel_pred
 
 
-def vis_pixeL_pred(image, pixel_pred, alpha):
+def vis_pixel_pred(image, pixel_pred, alpha):
     pixel_pred = postprocess_pixel_pred(pixel_pred)
     pil_image = TF.to_pil_image((image * 0.5) + 0.5)
     pil_pixel_pred = _to_pil(pixel_pred)
     blended = Image.blend(pil_image, pil_pixel_pred, alpha=alpha)
     blended.show()
+
+
+# def vis_link_gt(link_gt):
 
 
 def _get_canvas_same_size_as_image(img, black=False):
@@ -132,8 +137,8 @@ def _repaint_segmentation_map(seg_map):
     canvas_g = _get_canvas_same_size_as_image(seg_map, black=True)
     canvas_b = _get_canvas_same_size_as_image(seg_map, black=True)
 
-    remainder_map = seg_map % len(COLORS) + 1
-    for remainder, (r, g, b) in enumerate(COLORS, start=1):
+    remainder_map = seg_map % len(config.COLORS) + 1
+    for remainder, (r, g, b) in enumerate(config.COLORS, start=1):
         canvas_r[remainder_map == remainder] = r
         canvas_g[remainder_map == remainder] = g
         canvas_b[remainder_map == remainder] = b

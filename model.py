@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import vgg16_bn, VGG16_BN_Weights
 
-__all__ = ["PixelLink2s"]
+import config
 
-N_NEIGHBORS = 8
+__all__ = ["PixelLink2s"]
 
 
 def conv1x1(in_channels, out_channels, stride=1, bias=False):
@@ -109,8 +109,12 @@ class PixelLink2s(nn.Module):
         link += self.link_conv2(x2) # `(b, 2, h // 4, w // 4)`
         link = self._upsample(link) # `(b, 2, h // 2, w // 2)`
         link += self.link_conv1(x1) # `(b, 2, h // 2, w // 2)`
-        for i in range(0, N_NEIGHBORS * 2, 2):
-            link[:, i: i + 2, ...] = F.softmax(link[:, i: i + 2, ...], dim=1)
+        # for i in range(0, config.N_NEIGHBORS * 2, 2):
+        #     link[:, i: i + 2, ...] = F.softmax(link[:, i: i + 2, ...], dim=1)
+        for i in range(0, config.N_NEIGHBORS):
+            link[:, (i, i + config.N_NEIGHBORS), ...] = F.softmax(
+                link[:, (i, i + config.N_NEIGHBORS), ...], dim=1,
+            )
         return pixel, link
 
 
@@ -122,7 +126,7 @@ if __name__ == "__main__":
     pixel_pred.shape
 
     # pixel_pred.sum(dim=1)
-    # for i in range(0, N_NEIGHBORS * 2, 2):
+    # for i in range(0, config.N_NEIGHBORS * 2, 2):
     #     link_pred[:, i: i + 2, ...].sum(dim=1)
     # pixel_pred.shape, link_pred.shape
 

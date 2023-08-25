@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     model = PixelLink2s(pretrained_vgg16=config.PRETRAINED_VGG16).to(config.DEVICE)
 
-    crit = InstanceBalancedCELoss()
+    crit = InstanceBalancedCELoss(lamb=config.LAMB)
 
     optim = SGD(
         params=model.parameters(),
@@ -68,7 +68,11 @@ if __name__ == "__main__":
 
     scaler = GradScaler(enabled=True if config.AUTOCAST else False)
 
-    train_ds = MenuImageDataset(csv_dir=config.CSV_DIR, area_thresh=config.AREA_THRESH, split="train")
+    train_ds = MenuImageDataset(
+        csv_dir=config.CSV_DIR, area_thresh=config.AREA_THRESH, split="train"
+    )
+    # link_gt = train_ds[0]["link_gt"]
+    # link_gt[0]
     train_dl = DataLoader(
         train_ds,
         batch_size=config.BATCH_SIZE,
@@ -92,6 +96,7 @@ if __name__ == "__main__":
 
             pixel_gt = batch["pixel_gt"].to(config.DEVICE)
             pixel_weight = batch["pixel_weight"].to(config.DEVICE)
+            link_gt = batch["link_gt"].to(config.DEVICE)
 
             with torch.autocast(
                 device_type=config.DEVICE.type,
@@ -99,7 +104,13 @@ if __name__ == "__main__":
                 enabled=True if config.AUTOCAST else False,
             ):
                 pixel_pred, link_pred = model(image)
-                loss = crit(pixel_pred=pixel_pred, pixel_gt=pixel_gt, pixel_weight=pixel_weight)
+                loss = crit(
+                    pixel_pred=pixel_pred,
+                    pixel_gt=pixel_gt,
+                    pixel_weight=pixel_weight,
+                    link_pred=link_pred,
+                    link_gt=link_gt,
+                )
             optim.zero_grad()
             if config.AUTOCAST:
                 scaler.scale(loss).backward()
@@ -123,8 +134,8 @@ if __name__ == "__main__":
 
                 val_pixel_pred, val_link_pred = model(val_image.unsqueeze(0))
                 iou = get_pixel_iou(val_pixel_pred, val_pixel_gt)
-                print(f"""[ {epoch} ][ {step} ][ Loss: {running_loss / len(train_dl):.4f} ]""", end="")
-                print(f"""[ {get_elapsed_time(start_time)} ][ IoU: {iou:.4f} ]""")
+                print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
+                print(f"""[ Loss: {running_loss / len(train_dl):.4f} ][ IoU: {iou:.4f} ]""")
 
             if iou > best_iou:
                 cur_ckpt_path = config.CKPT_DIR/f"""epoch_{epoch}.pth"""

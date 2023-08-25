@@ -41,7 +41,7 @@ def load_image(csv_path):
 
 # "Pixels inside text bounding boxes are labeled as positive. If overlapping exists,
 # only un-overlapped pixels are positive. Otherwise negative."
-def get_pos_pixels(w, h, bboxes):
+def _get_pos_pixel_mask(w, h, bboxes):
     canvas = np.zeros((h, w), dtype="uint8")
     for row in bboxes.itertuples():
         canvas[row.ymin: row.ymax, row.xmin: row.xmax] += 1
@@ -83,7 +83,7 @@ bboxes = get_bboxes(csv_path)
 img = load_image(csv_path)
 h, w, _ = img.shape
 
-pos_pixels = get_pos_pixels(w=w, h=h, bboxes=bboxes)
+pos_pixels = _get_pos_pixel_mask(w=w, h=h, bboxes=bboxes)
 seg_map = get_text_seg_map(w=w, h=h, pos_pixels=pos_pixels)
 pos_links = get_pos_links(seg_map=seg_map, stride=1)
 temp = (sum(pos_links) == 8)

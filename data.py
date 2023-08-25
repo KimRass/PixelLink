@@ -23,8 +23,7 @@ from pathlib import Path
 import random
 
 import config
-from utils import draw_bboxes, pos_pixel_mask_to_pil
-from infer import _pad_input_image
+from utils import draw_bboxes, pos_pixel_mask_to_pil, _pad_input_image
 
 np.set_printoptions(edgeitems=20, linewidth=220, suppress=False)
 torch.set_printoptions(precision=4, edgeitems=12, linewidth=220)

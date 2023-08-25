@@ -8,24 +8,6 @@ from model import PixelLink2s
 from data import MenuImageDataset
 
 
-def _pad_input_image(image):
-    """
-    Resize the image so that the width and the height are multiples of 16 each.
-    """
-    # _, _, h, w = image.shape
-    w, h = image.size
-    if h % 16 != 0:
-        new_h = h + (16 - h % 16)
-    else:
-        new_h = h
-    if w % 16 != 0:
-        new_w = w + (16 - w % 16)
-    else:
-        new_w = w
-    new_image = TF.pad(image, padding=(0, 0, new_w - w, new_h - h), padding_mode="constant")
-    return new_image
-
-
 if __name__ == "__main__":
     model = PixelLink2s().to(config.DEVICE)
     state_dict = torch.load("/Users/jongbeomkim/Downloads/pixellink_checkpoints/epoch_290.pth", map_location=config.DEVICE)

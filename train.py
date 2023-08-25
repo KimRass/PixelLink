@@ -98,7 +98,7 @@ if __name__ == "__main__":
                 dtype=torch.float16,
                 enabled=True if config.AUTOCAST else False,
             ):
-                pixel_pred = model(image)
+                pixel_pred, link_pred = model(image)
                 loss = crit(pixel_pred=pixel_pred, pixel_gt=pixel_gt, pixel_weight=pixel_weight)
             optim.zero_grad()
             if config.AUTOCAST:

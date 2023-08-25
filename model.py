@@ -111,10 +111,12 @@ class PixelLink2s(nn.Module):
         link += self.link_conv1(x1) # `(b, 2, h // 2, w // 2)`
         # for i in range(0, config.N_NEIGHBORS * 2, 2):
         #     link[:, i: i + 2, ...] = F.softmax(link[:, i: i + 2, ...], dim=1)
-        for i in range(0, config.N_NEIGHBORS):
-            link[:, (i, i + config.N_NEIGHBORS), ...] = F.softmax(
-                link[:, (i, i + config.N_NEIGHBORS), ...], dim=1,
-            )
+        # for i in range(0, config.N_NEIGHBORS):
+        #     link[:, (i, i + config.N_NEIGHBORS), ...] = F.softmax(
+        #         link[:, (i, i + config.N_NEIGHBORS), ...], dim=1,
+        #     )
+        b, c, h, w = link.shape
+        link = F.softmax(link.view(-1, 2, 8, h, w), dim=1).view(b, c, h, w)
         return pixel, link
 
 

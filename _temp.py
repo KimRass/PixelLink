@@ -365,3 +365,31 @@ def to_bboxes(image_data, pixel_pos_scores, link_pos_scores):
     return mask
     # bboxes = mask_to_bboxes(mask, image_data.shape)
     # return mask, bboxes
+
+
+# def get_text_seg_map(w, h, pixel_gt):
+#     # canvas = np.zeros((h, w), dtype="uint16")
+#     canvas = np.zeros((h, w), dtype="uint8")
+#     for idx, row in enumerate(bboxes.itertuples(), start=1):
+#         canvas[row.y1: row.y2, row.1: row.x2] = idx
+#     return canvas * pixel_gt
+
+
+# def get_pos_links(seg_map, stride=5):
+#     ls = list()
+#     for shift in [
+#         (0, stride), # "Left"
+#         (-stride, stride), # "Left-down"
+#         (stride, stride), # "Left-up"
+#         (0, -stride), # "Right"
+#         (-stride, -stride), # "Right-down"
+#         (stride, -stride), # "Right-up"
+#         (stride, 0), # "Up"
+#         (-stride, 0), # "Down"
+#     ]:
+#         shifted = np.roll(seg_map, shift=shift, axis=(0, 1))
+#         shifted = (seg_map == shifted) * pixel_gt
+
+#         ls.append(shifted)
+#     stacked = np.stack(ls)
+#     return stacked

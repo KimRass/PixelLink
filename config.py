@@ -1,12 +1,14 @@
 import torch
+from pathlib import Path
 
 ### Data
 NEG_POS_RATIO = 3
 N_NEIGHBORS = 8
 IMG_SIZE = 1024
+FEAT_MAP_SIZE = IMG_SIZE // 2
 # AREA_THRESH = 1500
 AREA_THRESH = 2500
-CSV_DIR = "/home/ubuntu/project/cv/text_segmenter/data"
+CSV_DIR = "/home/ubuntu/project/cv/text_segmenter/sample_data"
 # CSV_DIR = "/Users/jongbeomkim/Desktop/workspace/text_segmenter/data"
 
 ### Optimizer
@@ -21,7 +23,7 @@ FIN_LR = 1e-2
 SEED = 33
 N_WORKERS = 4
 BATCH_SIZE = 4
-FEAT_MAP_SIZE = IMG_SIZE // 2
+AUTOCAST = True
 if torch.cuda.is_available():
     DEVICE = torch.device("cuda")
 else:
@@ -29,3 +31,4 @@ else:
 # DEVICE = torch.device("cpu")
 N_EPOCHS = 300
 N_VAL_EPOCHS = 10
+CKPT_DIR = Path(__file__).parent/"checkpoints"

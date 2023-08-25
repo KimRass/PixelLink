@@ -22,50 +22,22 @@ from io import BytesIO
 from pathlib import Path
 import random
 
+import config
 from utils import draw_bboxes, pos_pixel_mask_to_pil
 from infer import _pad_input_image
 
 np.set_printoptions(edgeitems=20, linewidth=220, suppress=False)
 torch.set_printoptions(precision=4, edgeitems=12, linewidth=220)
 
-# IMG_SIZE = 512
-IMG_SIZE = 1024
-
-
-# def get_text_seg_map(w, h, pixel_gt):
-#     # canvas = np.zeros((h, w), dtype="uint16")
-#     canvas = np.zeros((h, w), dtype="uint8")
-#     for idx, row in enumerate(bboxes.itertuples(), start=1):
-#         canvas[row.y1: row.y2, row.1: row.x2] = idx
-#     return canvas * pixel_gt
-
-
-# def get_pos_links(seg_map, stride=5):
-#     ls = list()
-#     for shift in [
-#         (0, stride), # "Left"
-#         (-stride, stride), # "Left-down"
-#         (stride, stride), # "Left-up"
-#         (0, -stride), # "Right"
-#         (-stride, -stride), # "Right-down"
-#         (stride, -stride), # "Right-up"
-#         (stride, 0), # "Up"
-#         (-stride, 0), # "Down"
-#     ]:
-#         shifted = np.roll(seg_map, shift=shift, axis=(0, 1))
-#         shifted = (seg_map == shifted) * pixel_gt
-
-#         ls.append(shifted)
-#     stacked = np.stack(ls)
-#     return stacked
-
 
 class MenuImageDataset(Dataset):
-    def __init__(self, csv_dir, area_thresh, split="train"):
+    def __init__(self, csv_dir, area_thresh, mode="2s", split="train"):
 
         self.csv_paths = list(Path(csv_dir).glob("*.csv"))
         self.area_thresh = area_thresh
         self.split = split
+
+        self.scale_factor = 0.5 if mode == "2s" else 0.25
 
     def get_bboxes(self, csv_path):
         bboxes = pd.read_csv(csv_path, usecols=["xmin", "ymin", "xmax", "ymax"])
@@ -99,7 +71,7 @@ class MenuImageDataset(Dataset):
         tbox_masks = self._get_textbox_masks(bboxes=bboxes, pos_pixel_mask=pos_pixel_mask)
         n_boxes = len(tbox_masks) # $N$
         if n_boxes == 0:
-            pixel_weight = torch.ones(size=(1, IMG_SIZE, IMG_SIZE))
+            pixel_weight = torch.ones(size=(1, config.IMG_SIZE, config.IMG_SIZE))
         else:
             areas = get_areas(tbox_masks)
             tot_area = sum(areas) # $S = \sum^{N}_{i} S_{i}, \forall i \in {1, \ldots, N}$
@@ -149,16 +121,16 @@ class MenuImageDataset(Dataset):
 
     def _randomly_shift_then_crop(self, image, bboxes):
         w, h = image.size
-        padding = (max(0, IMG_SIZE - w), max(0, IMG_SIZE - h))
+        padding = (max(0, config.IMG_SIZE - w), max(0, config.IMG_SIZE - h))
         image = TF.pad(image, padding=padding, padding_mode="constant")
-        t, l, h, w = T.RandomCrop.get_params(image, output_size=(IMG_SIZE, IMG_SIZE))
+        t, l, h, w = T.RandomCrop.get_params(image, output_size=(config.IMG_SIZE, config.IMG_SIZE))
         image = TF.crop(image, top=t, left=l, height=h, width=w)
 
         bboxes["x1"] += padding[0] - l
         bboxes["y1"] += padding[1] - t
         bboxes["x2"] += padding[0] - l
         bboxes["y2"] += padding[1] - t
-        bboxes[["x1", "y1", "x2", "y2"]] = bboxes[["x1", "y1", "x2", "y2"]].clip(0, IMG_SIZE)
+        bboxes[["x1", "y1", "x2", "y2"]] = bboxes[["x1", "y1", "x2", "y2"]].clip(0, config.IMG_SIZE)
         bboxes = bboxes[(bboxes["x1"] != bboxes["x2"]) & (bboxes["y1"] != bboxes["y2"])]
         return image, bboxes
 
@@ -183,7 +155,7 @@ class MenuImageDataset(Dataset):
 
         pixel_gt = pos_pixel_mask.unsqueeze(0)
         pixel_gt = F.interpolate(
-            pixel_gt.float().unsqueeze(0), scale_factor=0.5, mode="nearest"
+            pixel_gt.float().unsqueeze(0), scale_factor=self.scale_factor, mode="nearest"
         )[0].long()
 
         if self.split == "train":
@@ -191,11 +163,10 @@ class MenuImageDataset(Dataset):
                 bboxes=bboxes, pos_pixel_mask=pos_pixel_mask
             )
             pixel_weight = F.interpolate(
-                pixel_weight.unsqueeze(0), scale_factor=0.5, mode="nearest"
+                pixel_weight.unsqueeze(0), scale_factor=self.scale_factor, mode="nearest"
             )[0]
 
         image = TF.to_tensor(image)
-        # image = TF.normalize(image, mean=(0.457, 0.437, 0.404), std=(0.275, 0.271, 0.284))
         image = TF.normalize(image, mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
 
         data = {

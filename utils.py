@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from tqdm.auto import tqdm
+from time import time
+from datetime import timedelta
 
 
 def draw_bboxes(image: Image.Image, bboxes: pd.DataFrame) -> None:
@@ -45,3 +47,7 @@ if __name__ == "__main__":
     grid = make_grid((val_pixel_pred[:, 0, ...] >= 0.5).float())
     # grid.min(), grid.max()
     TF.to_pil_image(grid).show()
+
+
+def get_elapsed_time(start_time):
+    return timedelta(seconds=round(time() - start_time))

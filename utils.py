@@ -1,7 +1,8 @@
 import torch
+import torch.nn.functional as F
 import torchvision.transforms as T
-from torchvision.utils import make_grid
 import torchvision.transforms.functional as TF
+from torchvision.utils import make_grid
 import cv2
 from PIL import Image, ImageDraw
 import numpy as np
@@ -51,3 +52,86 @@ if __name__ == "__main__":
 
 def get_elapsed_time(start_time):
     return timedelta(seconds=round(time() - start_time))
+
+
+def split(pixel_pred):
+    temp = F.interpolate(pixel_pred, scale_factor=2, mode="nearest")
+    temp = temp[:, 1, ...]
+    # temp = (temp[:, 1, ...] >= 0.5).float()
+    return temp
+
+
+def vis(image, pixel_pred):
+    temp = split(pixel_pred)
+    temp = TF.to_pil_image(temp)
+    temp.show()
+    pil_image = TF.to_pil_image((image * 0.5) + 0.5)
+
+    Image.blend(pil_image, temp, alpha=0.5)
+
+
+def _to_pil(img, mode="RGB"):
+    if not isinstance(img, Image.Image):
+        image = Image.fromarray(img, mode=mode)
+        return image
+    else:
+        return img
+
+
+def _apply_jet_colormap(img):
+    img_jet = cv2.applyColorMap(src=(255 - img), colormap=cv2.COLORMAP_JET)
+    return img_jet
+
+
+def postprocess_pixel_pred(pixel_pred):
+    pixel_pred = pixel_pred.detach().cpu().numpy()
+    pixel_pred = pixel_pred[0, 1, ...]
+    h, w = pixel_pred.shape
+    pixel_pred = cv2.resize(pixel_pred, dsize=(w * 2, h * 2))
+    pixel_pred *= 255
+    pixel_pred = pixel_pred.astype("uint8")
+    pixel_pred = _apply_jet_colormap(pixel_pred)
+    return pixel_pred
+
+
+def vis_pixeL_pred(image, pixel_pred, alpha):
+    pixel_pred = postprocess_pixel_pred(pixel_pred)
+    pil_image = TF.to_pil_image((image * 0.5) + 0.5)
+    pil_pixel_pred = _to_pil(pixel_pred)
+    blended = Image.blend(pil_image, pil_pixel_pred, alpha=alpha)
+    blended.show()
+
+
+def _get_canvas_same_size_as_image(img, black=False):
+    if black:
+        return np.zeros_like(img).astype("uint8")
+    else:
+        return (np.ones_like(img) * 255).astype("uint8")
+
+
+def _repaint_segmentation_map(seg_map):
+    canvas_r = _get_canvas_same_size_as_image(seg_map, black=True)
+    canvas_g = _get_canvas_same_size_as_image(seg_map, black=True)
+    canvas_b = _get_canvas_same_size_as_image(seg_map, black=True)
+
+    remainder_map = seg_map % len(COLORS) + 1
+    for remainder, (r, g, b) in enumerate(COLORS, start=1):
+        canvas_r[remainder_map == remainder] = r
+        canvas_g[remainder_map == remainder] = g
+        canvas_b[remainder_map == remainder] = b
+    canvas_r[seg_map == 0] = 0
+    canvas_g[seg_map == 0] = 0
+    canvas_b[seg_map == 0] = 0
+
+    dstacked = np.dstack([canvas_r, canvas_g, canvas_b])
+    return dstacked
+
+
+def segment_pixel_pred(pixel_pred):
+    pixel_pred = pixel_pred.detach().cpu().numpy()
+    pixel_pred = pixel_pred[0, 1, ...]
+    h, w = pixel_pred.shape
+    pixel_pred = cv2.resize(pixel_pred, dsize=(w * 2, h * 2))
+    pixel_pred = (pixel_pred >= 0.5)
+    _, seg_map = cv2.connectedComponents(image=pixel_pred.astype("uint8"), connectivity=4)
+    return seg_map

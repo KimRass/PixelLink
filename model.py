@@ -25,10 +25,13 @@ def conv3x3_bn_relu(in_channels, out_channels, stride=1):
 
 
 class VGG16(nn.Module):
-    def __init__(self):
+    def __init__(self, pretrained=True):
         super().__init__()
-        # self.feat_extractor = vgg16_bn(weights=VGG16_BN_Weights.IMAGENET1K_V1).features
-        self.feat_extractor = vgg16_bn().features
+        if pretrained:
+            weights = VGG16_BN_Weights.IMAGENET1K_V1
+        else:
+            weights = None
+        self.feat_extractor = vgg16_bn(weights=weights).features
 
         self.conv_stage1 = self.feat_extractor[0: 6] # 'conv1_1', 'conv1_2'
         self.conv_stage2 = self.feat_extractor[6: 13] # 'pool1', 'conv2_1', 'conv2_2'
@@ -59,10 +62,10 @@ class VGG16(nn.Module):
 # denoted as 'PixelLink + VGG16 2s', and 'PixelLink + VGG16 4s', respectively. The resolution
 # of '2s' predictions is a half of the original image, and '4s' is a quarter."
 class PixelLink2s(nn.Module):
-    def __init__(self):
+    def __init__(self, pretrained_vgg16=True):
         super().__init__()
 
-        self.backbone = VGG16()
+        self.backbone = VGG16(pretrained_vgg16)
 
         # 'conv 1x1, 2(16)' stands for a 1x1 convolutional layer with 2 or 16 kernels,
         # for text/non-text prediction or link prediction individually."
@@ -97,18 +100,18 @@ class PixelLink2s(nn.Module):
         pixel += self.pixel_conv1(x1) # `(b, 2, h // 2, w // 2)`
         # "Softmax is used in both."
         pixel = F.softmax(pixel, dim=1)
-        return pixel
+        # return pixel
 
-        # link = self.link_conv5(x5) + self.link_conv4(x4)  # `(b, 2, h // 16, w // 16)`
-        # link = self._upsample(link) # `(b, 2, h // 8, w // 8)`
-        # link += self.link_conv3(x3) # `(b, 2, h // 8, w // 8)`
-        # link = self._upsample(link) # `(b, 2, h // 4, w // 4)`
-        # link += self.link_conv2(x2) # `(b, 2, h // 4, w // 4)`
-        # link = self._upsample(link) # `(b, 2, h // 2, w // 2)`
-        # link += self.link_conv1(x1) # `(b, 2, h // 2, w // 2)`
-        # for i in range(0, N_NEIGHBORS * 2, 2):
-        #     link[:, i: i + 2, ...] = F.softmax(link[:, i: i + 2, ...], dim=1)
-        # return pixel, link
+        link = self.link_conv5(x5) + self.link_conv4(x4)  # `(b, 2, h // 16, w // 16)`
+        link = self._upsample(link) # `(b, 2, h // 8, w // 8)`
+        link += self.link_conv3(x3) # `(b, 2, h // 8, w // 8)`
+        link = self._upsample(link) # `(b, 2, h // 4, w // 4)`
+        link += self.link_conv2(x2) # `(b, 2, h // 4, w // 4)`
+        link = self._upsample(link) # `(b, 2, h // 2, w // 2)`
+        link += self.link_conv1(x1) # `(b, 2, h // 2, w // 2)`
+        for i in range(0, N_NEIGHBORS * 2, 2):
+            link[:, i: i + 2, ...] = F.softmax(link[:, i: i + 2, ...], dim=1)
+        return pixel, link
 
 
 if __name__ == "__main__":

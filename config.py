@@ -8,8 +8,12 @@ IMG_SIZE = 1024
 FEAT_MAP_SIZE = IMG_SIZE // 2
 # AREA_THRESH = 1500
 AREA_THRESH = 2500
-CSV_DIR = "/home/ubuntu/project/cv/text_segmenter/sample_data"
-# CSV_DIR = "/Users/jongbeomkim/Desktop/workspace/text_segmenter/data"
+# CSV_DIR = "/home/ubuntu/project/cv/text_segmenter/sample_data"
+CSV_DIR = "/Users/jongbeomkim/Desktop/workspace/text_segmenter/sample_data"
+
+### Architecture
+PRETRAINED_VGG16 = True
+MODE = "2s"
 
 ### Optimizer
 # "Optimized by SGD with $momentum = 0.9$ and $weight_decay = 5 \times 10^{-4}$.
@@ -32,3 +36,27 @@ else:
 N_EPOCHS = 300
 N_VAL_EPOCHS = 10
 CKPT_DIR = Path(__file__).parent/"checkpoints"
+
+### Post-processing
+COLORS = (
+    (230, 25, 75),
+    (60, 180, 75),
+    (255, 255, 25),
+    (0, 130, 200),
+    (245, 130, 48),
+    (145, 30, 180),
+    (70, 240, 250),
+    (240, 50, 230),
+    (210, 255, 60),
+    (250, 190, 212),
+    (0, 128, 128),
+    (220, 190, 255),
+    (170, 110, 40),
+    (255, 250, 200),
+    (128, 0, 0),
+    (170, 255, 195),
+    (128, 128, 0),
+    (255, 215, 180),
+    (0, 0, 128),
+    (128, 128, 128),
+)

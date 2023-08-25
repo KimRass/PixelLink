@@ -54,7 +54,7 @@ if __name__ == "__main__":
     print(f"""BATCH_SIZE = {config.BATCH_SIZE}""")
     print(f"""DEVICE = {config.DEVICE}""")
 
-    model = PixelLink2s().to(config.DEVICE)
+    model = PixelLink2s(pretrained_vgg16=config.PRETRAINED_VGG16).to(config.DEVICE)
 
     crit = InstanceBalancedCELoss()
 
@@ -123,7 +123,7 @@ if __name__ == "__main__":
 
                 val_pixel_pred = model(val_image.unsqueeze(0))
                 iou = get_pixel_iou(val_pixel_pred, val_pixel_gt)
-                print(f"""[ {epoch} ][ {step} ][ Loss: {running_loss / len(train_dl):.4f} ]""")
+                print(f"""[ {epoch} ][ {step} ][ Loss: {running_loss / len(train_dl):.4f} ]""", end="")
                 print(f"""[ {get_elapsed_time(start_time)} ][ IoU: {iou:.4f} ]""")
 
             if iou > best_iou:

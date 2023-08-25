@@ -1,11 +1,9 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from einops import rearrange
 import numpy as np
 
 import config
-# from data import get_textbox_masks, get_areas
 
 np.set_printoptions(edgeitems=20, linewidth=220, suppress=False)
 torch.set_printoptions(precision=4, edgeitems=12, linewidth=220)
@@ -71,7 +69,6 @@ class InstanceBalancedCELoss(nn.Module):
         link_loss = link_loss.sum()
 
         loss = self.lamb * pixel_loss + link_loss
-        # print(pixel_loss, link_loss)
         return loss
 
 

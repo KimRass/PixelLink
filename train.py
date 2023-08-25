@@ -137,6 +137,8 @@ if __name__ == "__main__":
                 print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
                 print(f"""[ Loss: {running_loss / len(train_dl):.4f} ][ IoU: {iou:.4f} ]""")
 
+                start_time = time()
+
             if iou > best_iou:
                 cur_ckpt_path = config.CKPT_DIR/f"""epoch_{epoch}.pth"""
                 save_checkpoint(

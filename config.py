@@ -9,8 +9,8 @@ IMG_SIZE = 1024
 FEAT_MAP_SIZE = IMG_SIZE // 2
 # AREA_THRESH = 1500
 AREA_THRESH = 2500
-CSV_DIR = "/home/ubuntu/project/cv/text_segmenter/sample_data"
-# CSV_DIR = "/Users/jongbeomkim/Desktop/workspace/text_segmenter/sample_data"
+# CSV_DIR = "/home/ubuntu/project/cv/text_segmenter/sample_data"
+CSV_DIR = "/Users/jongbeomkim/Desktop/workspace/text_segmenter/sample_data"
 LAMB = 0.2
 
 ### Architecture

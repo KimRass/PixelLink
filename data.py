@@ -53,18 +53,15 @@ class MenuImageDataset(Dataset):
         with open(txt_path, mode="r") as f:
             line = f.readline().strip().replace("\ufeff", "")
             splitted = line.split("ᴥ")
-            if len(splitted) == 5:
-                l, t, r, b, text = splitted
-            elif len(splitted) == 4:
-                l, t, r, b = splitted
-            else:
-                pass
+            if len(splitted) in [4, 5]:
+                l, t, r, b = splitted[: 4]
             l = round(float(l.strip()))
             t = round(float(t.strip()))
             r = round(float(r.strip()))
             b = round(float(b.strip()))
-            bboxes.append((l, t, r, b, text))
-        bboxes = pd.DataFrame(bboxes, columns=("l", "t", "r", "b", "text"))
+            bboxes.append((l, t, r, b))
+
+        bboxes = pd.DataFrame(bboxes, columns=("l", "t", "r", "b"))
         bboxes["area"] = bboxes.apply(
             lambda x: max(0, (x["r"] - x["l"]) * (x["b"] - x["t"])), axis=1,
         )

@@ -37,7 +37,8 @@ if torch.cuda.is_available():
 else:
     DEVICE = torch.device("cpu")
 N_EPOCHS = 300
-N_VAL_STEPS = 100
+N_PRINT_STEPS = 100
+# N_VAL_STEPS = 100
 CKPT_DIR = Path(__file__).parent/"checkpoints"
 
 ### Post-processing

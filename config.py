@@ -31,7 +31,6 @@ FIN_LR = 1e-2
 ### Training
 SEED = 33
 N_WORKERS = 4
-BATCH_SIZE = 4
 AUTOCAST = True
 if torch.cuda.is_available():
     DEVICE = torch.device("cuda")

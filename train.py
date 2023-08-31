@@ -22,6 +22,7 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--data_dir", type=str, required=True)
+    parser.add_argument("--batch_size", type=int, required=True)
 
     args = parser.parse_args()
     return args
@@ -60,7 +61,7 @@ if __name__ == "__main__":
 
     print(f"""SEED = {config.SEED}""")
     print(f"""N_WORKERS = {config.N_WORKERS}""")
-    print(f"""BATCH_SIZE = {config.BATCH_SIZE}""")
+    print(f"""BATCH_SIZE = {config.batch_size}""")
     print(f"""DEVICE = {config.DEVICE}""")
 
     model = PixelLink2s(pretrained_vgg16=config.PRETRAINED_VGG16).to(config.DEVICE)
@@ -78,18 +79,24 @@ if __name__ == "__main__":
     scaler = GradScaler(enabled=True if config.AUTOCAST else False)
 
     train_ds = MenuImageDataset(
-        data_dir=args.data_dir, area_thresh=config.AREA_THRESH, split="train"
+        data_dir=args.data_dir,
+        img_size=config.IMG_SIZE,
+        area_thresh=config.AREA_THRESH,
+        split="train",
     )
-    # link_gt = train_ds[0]["link_gt"]
-    # link_gt[0]
     train_dl = DataLoader(
         train_ds,
-        batch_size=config.BATCH_SIZE,
+        batch_size=config.batch_size,
         num_workers=config.N_WORKERS,
         pin_memory=True,
         drop_last=True,
     )
-    val_ds = MenuImageDataset(data_dir=args.data_dir, area_thresh=config.AREA_THRESH, split="val")
+    val_ds = MenuImageDataset(
+        data_dir=args.data_dir,
+        img_size=config.IMG_SIZE,
+        area_thresh=config.AREA_THRESH,
+        split="val",
+    )
     val_dl = DataLoader(
         val_ds, batch_size=2, num_workers=config.N_WORKERS, pin_memory=True, drop_last=True
     )

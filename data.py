@@ -26,6 +26,8 @@ import filetype
 
 from utils import _pad_input_image
 
+Image.MAX_IMAGE_PIXELS = None
+
 # np.set_printoptions(edgeitems=20, linewidth=220, suppress=False)
 # torch.set_printoptions(precision=4, edgeitems=12, linewidth=220)
 

@@ -52,7 +52,10 @@ class MenuImageDataset(Dataset):
         bboxes = list()
         with open(txt_path, mode="r") as f:
             line = f.readline().strip().replace("\ufeff", "")
-            l, t, r, b, text = line.split("ᴥ ")
+            try:
+                l, t, r, b, text = line.split("ᴥ ")
+            except:
+                print(line)
             l = round(float(l))
             t = round(float(t))
             r = round(float(r))

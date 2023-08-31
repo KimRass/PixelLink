@@ -43,7 +43,7 @@ class MenuImageDataset(Dataset):
     def _get_path_pairs(self):
         self.path_pairs = list()
         for txt_path in Path(self.data_dir).glob("*.txt"):
-            for ext in [".jpg", ".png", "gif"]:
+            for ext in [".jpg", ".png"]:
                 img_path = Path(str(txt_path.with_suffix(ext)).replace("label", "image"))
                 if img_path.exists():
                     self.path_pairs.append((txt_path, img_path))

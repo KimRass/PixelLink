@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     print(f"""SEED = {config.SEED}""")
     print(f"""N_WORKERS = {config.N_WORKERS}""")
-    print(f"""BATCH_SIZE = {config.batch_size}""")
+    print(f"""BATCH_SIZE = {args.batch_size}""")
     print(f"""DEVICE = {config.DEVICE}""")
 
     model = PixelLink2s(pretrained_vgg16=config.PRETRAINED_VGG16).to(config.DEVICE)
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     )
     train_dl = DataLoader(
         train_ds,
-        batch_size=config.batch_size,
+        batch_size=args.batch_size,
         num_workers=config.N_WORKERS,
         pin_memory=True,
         drop_last=True,

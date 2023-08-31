@@ -22,6 +22,7 @@ from io import BytesIO
 from pathlib import Path
 import random
 import math
+import filetype
 
 from utils import _pad_input_image
 
@@ -45,7 +46,7 @@ class MenuImageDataset(Dataset):
         for txt_path in Path(self.data_dir).glob("*.txt"):
             for ext in [".jpg", ".png"]:
                 img_path = Path(str(txt_path.with_suffix(ext)).replace("label", "image"))
-                if img_path.exists():
+                if img_path.exists() and filetype.is_image(img_path):
                     self.path_pairs.append((txt_path, img_path))
                     break
 

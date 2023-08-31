@@ -52,17 +52,17 @@ class MenuImageDataset(Dataset):
         bboxes = list()
         with open(txt_path, mode="r") as f:
             line = f.readline().strip().replace("\ufeff", "")
-            splitted = line.split("ᴥ ")
+            splitted = line.split("ᴥ")
             if len(splitted) == 5:
                 l, t, r, b, text = splitted
             elif len(splitted) == 4:
                 l, t, r, b = splitted
             else:
                 pass
-            l = round(float(l))
-            t = round(float(t))
-            r = round(float(r))
-            b = round(float(b))
+            l = round(float(l.stip()))
+            t = round(float(t.stip()))
+            r = round(float(r.stip()))
+            b = round(float(b.stip()))
             bboxes.append((l, t, r, b, text))
         bboxes = pd.DataFrame(bboxes, columns=("l", "t", "r", "b", "text"))
         bboxes["area"] = bboxes.apply(

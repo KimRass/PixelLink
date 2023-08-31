@@ -1,11 +1,8 @@
+import gc
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.optim import SGD
-import torchvision.transforms.functional as TF
 from torch.cuda.amp import GradScaler
-from PIL import Image
 from time import time
 from pathlib import Path
 import argparse
@@ -57,6 +54,9 @@ def save_checkpoint(epoch, model, optim, scaler, save_path):
 
 
 if __name__ == "__main__":
+    gc.collect()
+    torch.cuda.empty_cache()
+
     args = get_args()
 
     print(f"""SEED = {config.SEED}""")

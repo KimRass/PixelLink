@@ -21,6 +21,7 @@ import requests
 from io import BytesIO
 from pathlib import Path
 import random
+import math
 
 from utils import _pad_input_image
 
@@ -42,7 +43,7 @@ class MenuImageDataset(Dataset):
     def _get_path_pairs(self):
         self.path_pairs = list()
         for txt_path in Path(self.data_dir).glob("*.txt"):
-            for ext in [".jpg", ".png"]:
+            for ext in [".jpg", ".png", "gif"]:
                 img_path = Path(str(txt_path.with_suffix(ext)).replace("label", "image"))
                 if img_path.exists():
                     self.path_pairs.append((txt_path, img_path))
@@ -65,6 +66,7 @@ class MenuImageDataset(Dataset):
         bboxes["area"] = bboxes.apply(
             lambda x: max(0, (x["r"] - x["l"]) * (x["b"] - x["t"])), axis=1,
         )
+        bboxes = bboxes[bboxes["area"] > 0]
         return bboxes
 
     def _get_textbox_masks(self, bboxes, pos_pixel_mask): # Index 0: Non-text, Index 1: Text
@@ -124,8 +126,12 @@ class MenuImageDataset(Dataset):
         확대는 하지 않고 축소만 하는데, 가장 작은 바운딩 박스의 넓이가 최소한 `area_thresh`와 같아지는 정도까지만 축소합니다.
         """
         min_area = bboxes["area"].min()
-        scale = random.uniform(self.area_thresh / min_area, 1)
-        
+        if math.isnan(min_area):
+            minim = 0.25
+        else:
+            minim = self.area_thresh / min_area
+        scale = random.uniform(minim, 1)
+
         w, h = image.size
         size = (round(h * scale), round(w * scale))
         image = TF.resize(image, size=size, antialias=True)
@@ -231,27 +237,5 @@ if __name__ == "__main__":
     N_WORKERS = 0
     dl = DataLoader(ds, batch_size=1, num_workers=N_WORKERS, pin_memory=True, drop_last=True)
     di = iter(dl)
-    for _ in range(5):
+    for _ in range(len(dl)):
         data = next(di)
-
-#     data = ds[0]
-#     pixel_gt = data["pixel_gt"]
-#     pixel_weight = data["pixel_weight"]
-#     pixel_gt.shape
-#     pixel_weight.shape
-
-
-# # cls_logits = torch.stack((torch.Tensor(~pixel_gt), torch.Tensor(pixel_gt)))[None, ...].repeat(2, 1, 1, 1)
-# # link_logits = torch.cat(
-# #     (torch.stack([torch.Tensor(~i) for i in pos_links]), torch.stack([torch.Tensor(i) for i in pos_links])),
-# #     dim=0
-# # )[None, ...].repeat(2, 1, 1, 1)
-# pixel_pos_scores = torch.Tensor(pixel_gt)[None, ...].repeat(2, 1, 1)
-# link_pos_scores = torch.stack([torch.Tensor(i) for i in pos_links])[None, ...].repeat(2, 1, 1, 1)
-# # mask, bboxes = to_bboxes(img, pixel_pos_scores.cpu().numpy(), link_pos_scores.cpu().numpy())
-# mask = to_bboxes(img, pixel_pos_scores.cpu().numpy(), link_pos_scores.cpu().numpy())
-# # np.unique(mask)
-# show_image(mask)
-# show_image(img, mask)
-# save_image(mask, path="/Users/jongbeomkim/Desktop/workspace/text_segmenter/sample_output.png")
-# save_image(mask, img, path="/Users/jongbeomkim/Desktop/workspace/text_segmenter/sample_output2.png")

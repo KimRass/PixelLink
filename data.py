@@ -59,10 +59,10 @@ class MenuImageDataset(Dataset):
                 l, t, r, b = splitted
             else:
                 pass
-            l = round(float(l.stip()))
-            t = round(float(t.stip()))
-            r = round(float(r.stip()))
-            b = round(float(b.stip()))
+            l = round(float(l.strip()))
+            t = round(float(t.strip()))
+            r = round(float(r.strip()))
+            b = round(float(b.strip()))
             bboxes.append((l, t, r, b, text))
         bboxes = pd.DataFrame(bboxes, columns=("l", "t", "r", "b", "text"))
         bboxes["area"] = bboxes.apply(

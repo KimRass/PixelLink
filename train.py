@@ -110,7 +110,7 @@ if __name__ == "__main__":
         running_loss = 0
         # loss_cnt = 0
         # for step, batch in enumerate(train_dl, start=1):
-        for step, batch in tqdm(enumerate(train_dl, start=1)):
+        for step, batch in tqdm(enumerate(train_dl, start=1), total=len(train_dl)):
             image = batch["image"].to(config.DEVICE)
 
             pixel_gt = batch["pixel_gt"].to(config.DEVICE)

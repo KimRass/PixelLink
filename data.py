@@ -22,40 +22,54 @@ from io import BytesIO
 from pathlib import Path
 import random
 
-import config
 from utils import _pad_input_image
 
-np.set_printoptions(edgeitems=20, linewidth=220, suppress=False)
-torch.set_printoptions(precision=4, edgeitems=12, linewidth=220)
+# np.set_printoptions(edgeitems=20, linewidth=220, suppress=False)
+# torch.set_printoptions(precision=4, edgeitems=12, linewidth=220)
 
 
 class MenuImageDataset(Dataset):
-    def __init__(self, csv_dir, area_thresh, mode="2s", split="train"):
+    def __init__(self, data_dir, img_size, area_thresh, split="train", mode="2s"):
 
-        self.csv_paths = list(Path(csv_dir).glob("*.csv"))
+        self.data_dir = data_dir
+        self.img_size = img_size
         self.area_thresh = area_thresh
         self.split = split
 
         self.scale_factor = 0.5 if mode == "2s" else 0.25
+        self._get_path_pairs()
 
-    def get_bboxes(self, csv_path):
-        bboxes = pd.read_csv(csv_path, usecols=["xmin", "ymin", "xmax", "ymax"])
-        bboxes.rename({"xmin": "x1", "ymin": "y1", "xmax": "x2", "ymax": "y2"}, axis=1, inplace=True)
-        bboxes["area"] = (bboxes["x2"] - bboxes["x1"]) * (bboxes["y2"] - bboxes["y1"])
+    def _get_path_pairs(self):
+        self.path_pairs = list()
+        for txt_path in Path(self.data_dir).glob("*.txt"):
+            for ext in [".jpg", ".png"]:
+                img_path = Path(str(txt_path.with_suffix(ext)).replace("label", "image"))
+                if img_path.exists():
+                    self.path_pairs.append((txt_path, img_path))
+                    break
+
+    def get_bboxes(self, txt_path):
+        bboxes = list()
+        with open(txt_path, mode="r") as f:
+            line = f.readline().strip().replace("\ufeff", "")
+            l, t, r, b, text = line.split("ᴥ ")
+            l = round(float(l))
+            t = round(float(t))
+            r = round(float(r))
+            b = round(float(b))
+            bboxes.append((l, t, r, b, text))
+        bboxes = pd.DataFrame(bboxes, columns=("l", "t", "r", "b", "text"))
+        bboxes["area"] = bboxes.apply(
+            lambda x: max(0, (x["r"] - x["l"]) * (x["b"] - x["t"])), axis=1,
+        )
         return bboxes
-
-    def load_image(self, csv_path):
-        bboxes = pd.read_csv(csv_path, usecols=["image_url"])
-        img_path = bboxes["image_url"][0]
-        image = Image.open(BytesIO(requests.get(img_path).content)).convert("RGB")
-        return image
 
     def _get_textbox_masks(self, bboxes, pos_pixel_mask): # Index 0: Non-text, Index 1: Text
         h, w = pos_pixel_mask.shape
         tboxes = list()
         for row in bboxes.itertuples():
             tbox = torch.zeros((h, w), dtype=torch.bool)
-            tbox[row.y1: row.y2, row.x1: row.x2] = True
+            tbox[row.t: row.b, row.l: row.r] = True
             tbox *= pos_pixel_mask
 
             tboxes.append(tbox)
@@ -70,7 +84,7 @@ class MenuImageDataset(Dataset):
         tbox_masks = self._get_textbox_masks(bboxes=bboxes, pos_pixel_mask=pos_pixel_mask)
         n_boxes = len(tbox_masks) # $N$
         if n_boxes == 0:
-            pixel_weight = torch.ones(size=(1, config.IMG_SIZE, config.IMG_SIZE))
+            pixel_weight = torch.ones(size=(1, self.img_size, self.img_size))
         else:
             areas = get_areas(tbox_masks)
             tot_area = sum(areas) # $S = \sum^{N}_{i} S_{i}, \forall i \in {1, \ldots, N}$
@@ -96,7 +110,7 @@ class MenuImageDataset(Dataset):
         w, h = image.size
         canvas = torch.zeros((h, w))
         for row in bboxes.itertuples():
-            canvas[row.y1: row.y2, row.x1: row.x2] += 1
+            canvas[row.t: row.b, row.l: row.r] += 1
         # "Pixels inside text bounding boxes are labeled as positive. If overlapping exists,
         # only un-overlapped pixels are positive. Otherwise negative."
         pos_pixel_mask = (canvas == 1)
@@ -113,32 +127,32 @@ class MenuImageDataset(Dataset):
         size = (round(h * scale), round(w * scale))
         image = TF.resize(image, size=size, antialias=True)
 
-        bboxes["x1"] = bboxes["x1"].apply(lambda x: round(x * scale))
-        bboxes["y1"] = bboxes["y1"].apply(lambda x: round(x * scale))
-        bboxes["x2"] = bboxes["x2"].apply(lambda x: round(x * scale))
-        bboxes["y2"] = bboxes["y2"].apply(lambda x: round(x * scale))
+        bboxes["l"] = bboxes["l"].apply(lambda x: round(x * scale))
+        bboxes["t"] = bboxes["t"].apply(lambda x: round(x * scale))
+        bboxes["r"] = bboxes["r"].apply(lambda x: round(x * scale))
+        bboxes["b"] = bboxes["b"].apply(lambda x: round(x * scale))
         return image, bboxes
 
     def _randomly_shift_then_crop(self, image, bboxes):
         w, h = image.size
-        padding = (max(0, config.IMG_SIZE - w), max(0, config.IMG_SIZE - h))
+        padding = (max(0, self.img_size - w), max(0, self.img_size - h))
         image = TF.pad(image, padding=padding, padding_mode="constant")
-        t, l, h, w = T.RandomCrop.get_params(image, output_size=(config.IMG_SIZE, config.IMG_SIZE))
+        t, l, h, w = T.RandomCrop.get_params(image, output_size=(self.img_size, self.img_size))
         image = TF.crop(image, top=t, left=l, height=h, width=w)
 
-        bboxes["x1"] += padding[0] - l
-        bboxes["y1"] += padding[1] - t
-        bboxes["x2"] += padding[0] - l
-        bboxes["y2"] += padding[1] - t
-        bboxes[["x1", "y1", "x2", "y2"]] = bboxes[["x1", "y1", "x2", "y2"]].clip(0, config.IMG_SIZE)
-        bboxes = bboxes[(bboxes["x1"] != bboxes["x2"]) & (bboxes["y1"] != bboxes["y2"])]
+        bboxes["l"] += padding[0] - l
+        bboxes["t"] += padding[1] - t
+        bboxes["r"] += padding[0] - l
+        bboxes["b"] += padding[1] - t
+        bboxes[["l", "t", "r", "b"]] = bboxes[["l", "t", "r", "b"]].clip(0, self.img_size)
+        bboxes = bboxes[(bboxes["l"] != bboxes["r"]) & (bboxes["t"] != bboxes["b"])]
         return image, bboxes
 
     def _get_text_seg_map(self, image: Image.Image, bboxes: pd.DataFrame, pos_pixels):
         w, h = image.size
         canvas = torch.zeros(size=(h, w), dtype=torch.long)
         for idx, row in enumerate(bboxes.itertuples(), start=1):
-            canvas[row.y1: row.y2, row.x1: row.x2] = idx
+            canvas[row.t: row.b, row.l: row.r] = idx
         return canvas * pos_pixels
 
     def _get_pos_links(self, link_seg_map, pos_pixel_mask, stride=5):
@@ -161,13 +175,12 @@ class MenuImageDataset(Dataset):
         return stacked
 
     def __len__(self):
-        return len(self.csv_paths)
+        return len(self.path_pairs)
 
     def __getitem__(self, idx):
-        csv_path = self.csv_paths[idx]
-
-        bboxes = self.get_bboxes(csv_path)
-        image = self.load_image(csv_path)
+        txt_path, img_path = self.path_pairs[idx]
+        bboxes = self.get_bboxes(txt_path)
+        image = Image.open(img_path).convert("RGB")
 
         if self.split == "train":
             image, bboxes = self._randomly_scale(image=image, bboxes=bboxes)
@@ -210,12 +223,13 @@ class MenuImageDataset(Dataset):
 
 
 if __name__ == "__main__":
-    csv_dir = "/Users/jongbeomkim/Desktop/workspace/text_segmenter/data"
-    ds = MenuImageDataset(csv_dir=csv_dir)
+    data_dir = "/Users/jongbeomkim/Documents/datasets/menu_images"
+    ds = MenuImageDataset(data_dir=data_dir, img_size=1024, area_thresh=100)
     N_WORKERS = 0
     dl = DataLoader(ds, batch_size=1, num_workers=N_WORKERS, pin_memory=True, drop_last=True)
+    di = iter(dl)
     for _ in range(5):
-        data = next(iter(dl))
+        data = next(di)
 
 #     data = ds[0]
 #     pixel_gt = data["pixel_gt"]

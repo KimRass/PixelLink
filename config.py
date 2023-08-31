@@ -1,3 +1,6 @@
+# import sys
+# sys.path.insert(0, "/Users/jongbeomkim/Desktop/workspace/text_segmenter")
+
 import torch
 from pathlib import Path
 

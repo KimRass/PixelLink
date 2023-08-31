@@ -1,6 +1,3 @@
-import sys
-sys.path.insert(0, "/Users/jongbeomkim/Desktop/workspace/text_segmenter")
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,6 +8,7 @@ from torch.cuda.amp import GradScaler
 from PIL import Image
 from time import time
 from pathlib import Path
+import argparse
 
 import config
 from model import PixelLink2s
@@ -18,6 +16,15 @@ from data import MenuImageDataset
 from loss import InstanceBalancedCELoss
 from evaluate import get_pixel_iou
 from utils import get_elapsed_time
+
+
+def get_args():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--data_dir", type=str, required=True)
+
+    args = parser.parse_args()
+    return args
 
 
 # def validate(model, val_dl):
@@ -49,6 +56,8 @@ def save_checkpoint(epoch, model, optim, scaler, save_path):
 
 
 if __name__ == "__main__":
+    args = get_args()
+
     print(f"""SEED = {config.SEED}""")
     print(f"""N_WORKERS = {config.N_WORKERS}""")
     print(f"""BATCH_SIZE = {config.BATCH_SIZE}""")
@@ -69,7 +78,7 @@ if __name__ == "__main__":
     scaler = GradScaler(enabled=True if config.AUTOCAST else False)
 
     train_ds = MenuImageDataset(
-        csv_dir=config.CSV_DIR, area_thresh=config.AREA_THRESH, split="train"
+        data_dir=args.data_dir, area_thresh=config.AREA_THRESH, split="train"
     )
     # link_gt = train_ds[0]["link_gt"]
     # link_gt[0]
@@ -80,7 +89,7 @@ if __name__ == "__main__":
         pin_memory=True,
         drop_last=True,
     )
-    val_ds = MenuImageDataset(csv_dir=config.CSV_DIR, area_thresh=config.AREA_THRESH, split="val")
+    val_ds = MenuImageDataset(data_dir=args.data_dir, area_thresh=config.AREA_THRESH, split="val")
     val_dl = DataLoader(
         val_ds, batch_size=2, num_workers=config.N_WORKERS, pin_memory=True, drop_last=True
     )

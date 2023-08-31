@@ -6,6 +6,7 @@ from torch.cuda.amp import GradScaler
 from time import time
 from pathlib import Path
 import argparse
+from tqdm.auto import tqdm
 
 import config
 from model import PixelLink2s
@@ -104,10 +105,12 @@ if __name__ == "__main__":
     start_time = time()
     best_iou = 0
     prev_ckpt_path = ".pth"
-    for epoch in range(1, config.N_EPOCHS + 1):
+    # for epoch in range(1, config.N_EPOCHS + 1):
+    for epoch in tqdm(range(1, config.N_EPOCHS + 1)):
         running_loss = 0
         # loss_cnt = 0
-        for step, batch in enumerate(train_dl, start=1):
+        # for step, batch in enumerate(train_dl, start=1):
+        for step, batch in tqdm(enumerate(train_dl, start=1)):
             image = batch["image"].to(config.DEVICE)
 
             pixel_gt = batch["pixel_gt"].to(config.DEVICE)
@@ -139,7 +142,6 @@ if __name__ == "__main__":
             running_loss += loss.item()
             # loss_cnt += 1
 
-
         ### Validate.
         if (epoch % config.N_VAL_EPOCHS == 0) or (epoch == config.N_EPOCHS):
             model.eval()
@@ -168,4 +170,4 @@ if __name__ == "__main__":
                 best_iou = iou
                 prev_ckpt_path = cur_ckpt_path
 
-        model.train()
+            model.train()

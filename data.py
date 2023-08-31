@@ -15,10 +15,7 @@ from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as T
 import torchvision.transforms.functional as TF
 from PIL import Image
-import numpy as np
 import pandas as pd
-import requests
-from io import BytesIO
 from pathlib import Path
 import random
 import math

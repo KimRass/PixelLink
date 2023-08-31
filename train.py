@@ -1,6 +1,6 @@
 import gc
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 from torch.optim import SGD
 from torch.cuda.amp import GradScaler
 from time import time
@@ -79,12 +79,15 @@ if __name__ == "__main__":
 
     scaler = GradScaler(enabled=True if config.AUTOCAST else False)
 
-    train_ds = MenuImageDataset(
+    ds = MenuImageDataset(
         data_dir=args.data_dir,
         img_size=config.IMG_SIZE,
         area_thresh=config.AREA_THRESH,
         split="train",
     )
+    train_ds_size = round(len(ds) * 0.9)
+    val_ds_size = len(ds) - train_ds_size
+    train_ds, val_ds = random_split(ds, lengths=(train_ds_size, val_ds_size))
     train_dl = DataLoader(
         train_ds,
         batch_size=args.batch_size,
@@ -92,23 +95,21 @@ if __name__ == "__main__":
         pin_memory=True,
         drop_last=True,
     )
-    val_ds = MenuImageDataset(
-        data_dir=args.data_dir,
-        img_size=config.IMG_SIZE,
-        area_thresh=config.AREA_THRESH,
-        split="val",
-    )
     val_dl = DataLoader(
-        val_ds, batch_size=2, num_workers=config.N_WORKERS, pin_memory=True, drop_last=True
+        val_ds,
+        batch_size=args.batch_size,
+        num_workers=config.N_WORKERS,
+        pin_memory=True,
+        drop_last=True,
     )
 
     start_time = time()
     best_iou = 0
     prev_ckpt_path = ".pth"
+    cnt = 0
     for epoch in range(1, config.N_EPOCHS + 1):
     # for epoch in tqdm(range(1, config.N_EPOCHS + 1)):
         running_loss = 0
-        # loss_cnt = 0
         for step, batch in enumerate(train_dl, start=1):
         # for step, batch in tqdm(enumerate(train_dl, start=1), total=len(train_dl)):
             image = batch["image"].to(config.DEVICE)
@@ -140,34 +141,38 @@ if __name__ == "__main__":
                 optim.step()
 
             running_loss += loss.item()
-            # loss_cnt += 1
+            cnt += 1
 
             ### Validate.
-            if step % config.N_VAL_STEPS == 0:
-                model.eval()
-                with torch.no_grad():
-                    val_data = val_ds[0]
-                    val_image = val_data["image"].to(config.DEVICE)
-                    val_pixel_gt = val_data["pixel_gt"].to(config.DEVICE)
+            if step % config.N_PRINT_STEPS == 0:
+                print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
+                print(f"""[ Loss: {running_loss / cnt:.4f} ]""")
 
-                    val_pixel_pred, val_link_pred = model(val_image.unsqueeze(0))
-                    iou = get_pixel_iou(val_pixel_pred, val_pixel_gt)
-                    print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
-                    print(f"""[ Loss: {running_loss / len(train_dl):.4f} ][ IoU: {iou:.4f} ]""")
+                cnt = 0
+                # model.eval()
+                # with torch.no_grad():
+                #     val_data = val_ds[0]
+                #     val_image = val_data["image"].to(config.DEVICE)
+                #     val_pixel_gt = val_data["pixel_gt"].to(config.DEVICE)
 
-                    start_time = time()
+                #     val_pixel_pred, val_link_pred = model(val_image.unsqueeze(0))
+                #     iou = get_pixel_iou(val_pixel_pred, val_pixel_gt)
+                #     print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
+                #     print(f"""[ Loss: {running_loss / len(train_dl):.4f} ][ IoU: {iou:.4f} ]""")
 
-                if iou > best_iou:
-                    cur_ckpt_path = config.CKPT_DIR/f"""epoch_{epoch}.pth"""
-                    save_checkpoint(
-                        epoch=epoch, model=model, optim=optim, scaler=scaler, save_path=cur_ckpt_path,
-                    )
-                    print(f"""Saved checkpoint.""")
-                    prev_ckpt_path = Path(prev_ckpt_path)
-                    if prev_ckpt_path.exists():
-                        prev_ckpt_path.unlink()
+                #     start_time = time()
 
-                    best_iou = iou
-                    prev_ckpt_path = cur_ckpt_path
+                # if iou > best_iou:
+                #     cur_ckpt_path = config.CKPT_DIR/f"""epoch_{epoch}.pth"""
+                #     save_checkpoint(
+                #         epoch=epoch, model=model, optim=optim, scaler=scaler, save_path=cur_ckpt_path,
+                #     )
+                #     print(f"""Saved checkpoint.""")
+                #     prev_ckpt_path = Path(prev_ckpt_path)
+                #     if prev_ckpt_path.exists():
+                #         prev_ckpt_path.unlink()
 
-                model.train()
+                #     best_iou = iou
+                #     prev_ckpt_path = cur_ckpt_path
+
+                # model.train()

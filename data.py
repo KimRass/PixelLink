@@ -55,11 +55,11 @@ class MenuImageDataset(Dataset):
             splitted = line.split("ᴥ")
             if len(splitted) in [4, 5]:
                 l, t, r, b = splitted[: 4]
-            l = round(float(l.strip()))
-            t = round(float(t.strip()))
-            r = round(float(r.strip()))
-            b = round(float(b.strip()))
-            bboxes.append((l, t, r, b))
+                l = round(float(l.strip()))
+                t = round(float(t.strip()))
+                r = round(float(r.strip()))
+                b = round(float(b.strip()))
+                bboxes.append((l, t, r, b))
 
         bboxes = pd.DataFrame(bboxes, columns=("l", "t", "r", "b"))
         bboxes["area"] = bboxes.apply(

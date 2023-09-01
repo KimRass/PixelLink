@@ -103,9 +103,9 @@ if __name__ == "__main__":
         drop_last=True,
     )
 
-    start_time = time()
     best_iou = 0
     prev_ckpt_path = ".pth"
+    start_time = time()
     cnt = 0
     for epoch in range(1, config.N_EPOCHS + 1):
     # for epoch in tqdm(range(1, config.N_EPOCHS + 1)):
@@ -146,8 +146,9 @@ if __name__ == "__main__":
             ### Validate.
             if step % config.N_PRINT_STEPS == 0:
                 print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
-                print(f"""[ Loss: {running_loss / cnt:.4f} ]""")
+                print(f"""[ Loss: {running_loss / cnt:.6f} ]""")
 
+                start_time = time()
                 cnt = 0
                 # model.eval()
                 # with torch.no_grad():

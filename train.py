@@ -107,11 +107,9 @@ if __name__ == "__main__":
     prev_ckpt_path = ".pth"
     start_time = time()
     cnt = 0
-    for epoch in range(1, config.N_EPOCHS + 1):
-    # for epoch in tqdm(range(1, config.N_EPOCHS + 1)):
+    for epoch in tqdm(range(1, config.N_EPOCHS + 1)):
         running_loss = 0
-        for step, batch in enumerate(train_dl, start=1):
-        # for step, batch in tqdm(enumerate(train_dl, start=1), total=len(train_dl)):
+        for step, batch in tqdm(enumerate(train_dl, start=1), total=len(train_dl)):
             image = batch["image"].to(config.DEVICE)
 
             pixel_gt = batch["pixel_gt"].to(config.DEVICE)

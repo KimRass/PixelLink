@@ -28,7 +28,7 @@ from utils import _pad_input_image
 Image.MAX_IMAGE_PIXELS = None
 
 # np.set_printoptions(edgeitems=20, linewidth=220, suppress=False)
-# torch.set_printoptions(precision=4, edgeitems=12, linewidth=220)
+torch.set_printoptions(edgeitems=4)
 
 
 def _get_path_pairs(data_dir):
@@ -90,19 +90,21 @@ class MenuImageDataset(Dataset):
             # p=1,
         )
         # image = Image.open("/Users/jongbeomkim/Documents/datasets/menu_images/1_1_image.jpg").convert("RGB")
+        # color_jitter(image).show()
 
     def get_bboxes(self, txt_path):
         bboxes = list()
         with open(txt_path, mode="r") as f:
-            line = f.readline().strip().replace("\ufeff", "")
-            splitted = line.split("ᴥ")
-            if len(splitted) in [4, 5]:
-                l, t, r, b = splitted[: 4]
-                l = round(float(l.strip()))
-                t = round(float(t.strip()))
-                r = round(float(r.strip()))
-                b = round(float(b.strip()))
-                bboxes.append((l, t, r, b))
+            for line in f:
+                line = line.strip().replace("\ufeff", "")
+                splitted = line.split("ᴥ")
+                if len(splitted) in [4, 5]:
+                    l, t, r, b = splitted[: 4]
+                    l = round(float(l.strip()))
+                    t = round(float(t.strip()))
+                    r = round(float(r.strip()))
+                    b = round(float(b.strip()))
+                    bboxes.append((l, t, r, b))
 
         bboxes = pd.DataFrame(bboxes, columns=("l", "t", "r", "b"))
         bboxes["area"] = bboxes.apply(
@@ -125,7 +127,7 @@ class MenuImageDataset(Dataset):
     # "A weight matrix, denoted by $W$, for all positive pixels and selected negative ones."
     def _get_pixel_weight_for_pos_pixels(self, bboxes, pos_pixel_mask):
         def get_areas(tboxes):
-            areas = [tbox.sum().item() for tbox in tboxes] # $S_{i}$
+            areas = [tbox.sum().item() for tbox in tboxes]
             return areas
 
         tbox_masks = self._get_textbox_masks(bboxes=bboxes, pos_pixel_mask=pos_pixel_mask)
@@ -133,7 +135,7 @@ class MenuImageDataset(Dataset):
         if n_boxes == 0:
             pixel_weight = torch.ones(size=(1, self.img_size, self.img_size))
         else:
-            areas = get_areas(tbox_masks)
+            areas = get_areas(tbox_masks) # $S_{i}$
             tot_area = sum(areas) # $S = \sum^{N}_{i} S_{i}, \forall i \in {1, \ldots, N}$
             avg_area = tot_area / n_boxes # $B_{i} = S / N$
 
@@ -279,20 +281,20 @@ class MenuImageDataset(Dataset):
         return data
 
 
-if __name__ == "__main__":
-    data_dir = "/Users/jongbeomkim/Documents/datasets/menu_images/"
-    path_pairs = _get_path_pairs(data_dir)
-    len(path_pairs)
-    txt_path, img_path = path_pairs[0]
-    whs
+# if __name__ == "__main__":
+#     data_dir = "/Users/jongbeomkim/Documents/datasets/menu_images/"
+#     path_pairs = _get_path_pairs(data_dir)
+#     len(path_pairs)
+#     txt_path, img_path = path_pairs[0]
+#     whs
 
-    ws = sorted([wh[0] for wh in whs])
-    (np.array(ws) > 3000).sum()
+#     ws = sorted([wh[0] for wh in whs])
+#     (np.array(ws) > 3000).sum()
 
-    data_dir = "/Users/jongbeomkim/Documents/datasets/menu_images"
-    ds = MenuImageDataset(data_dir=data_dir, img_size=1024, area_thresh=100)
-    N_WORKERS = 0
-    dl = DataLoader(ds, batch_size=1, num_workers=N_WORKERS, pin_memory=True, drop_last=True)
-    di = iter(dl)
-    for _ in range(len(dl)):
-        data = next(di)
+#     data_dir = "/Users/jongbeomkim/Documents/datasets/menu_images"
+#     ds = MenuImageDataset(data_dir=data_dir, img_size=1024, area_thresh=100)
+#     N_WORKERS = 0
+#     dl = DataLoader(ds, batch_size=1, num_workers=N_WORKERS, pin_memory=True, drop_last=True)
+#     di = iter(dl)
+#     for _ in range(len(dl)):
+#         data = next(di)

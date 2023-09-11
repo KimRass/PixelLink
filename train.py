@@ -27,11 +27,10 @@ def get_args():
 
 
 def validate(model, val_dl):
-    print("Validating...")
     model.eval()
     accum_iou = 0
     with torch.no_grad():
-        for batch in tqdm(val_dl):
+        for batch in val_dl:
             image = batch["image"].to(config.DEVICE)
             pixel_gt = batch["pixel_gt"].to(config.DEVICE)
 
@@ -40,7 +39,6 @@ def validate(model, val_dl):
 
             accum_iou += iou
     avg_iou = accum_iou / len(val_dl)
-    print(f"""[ {epoch} ][ {step} ][ IoU: {avg_iou:.3f} ]""")
     model.train()
     return avg_iou
 
@@ -66,6 +64,7 @@ if __name__ == "__main__":
     print(f"""N_WORKERS = {config.N_WORKERS}""")
     print(f"""BATCH_SIZE = {args.batch_size}""")
     print(f"""DEVICE = {config.DEVICE}""")
+    print(f"""AMP = {config.AMP}""")
 
     model = PixelLink2s(pretrained_vgg16=config.PRETRAINED_VGG16).to(config.DEVICE)
 
@@ -78,12 +77,13 @@ if __name__ == "__main__":
         momentum=config.MOMENTUM,
         weight_decay=config.WEIGHT_DECAY,
     )
-    optim.param_groups[0]["lr"] = config.FIN_LR
+    # optim.param_groups[0]["lr"] = config.FIN_LR
 
-    scaler = GradScaler(enabled=True if config.AUTOCAST else False)
+    scaler = GradScaler(enabled=True if config.AMP else False)
 
     ds = MenuImageDataset(
         data_dir=args.data_dir,
+        # data_dir="/Users/jongbeomkim/Documents/datasets/menu_images",
         img_size=config.IMG_SIZE,
         area_thresh=config.AREA_THRESH,
         split="train",
@@ -94,6 +94,7 @@ if __name__ == "__main__":
     train_dl = DataLoader(
         train_ds,
         batch_size=args.batch_size,
+        # batch_size=2,
         num_workers=config.N_WORKERS,
         pin_memory=True,
         drop_last=True,
@@ -101,15 +102,15 @@ if __name__ == "__main__":
     val_dl = DataLoader(
         val_ds,
         batch_size=args.batch_size,
+        # batch_size=2,
         num_workers=config.N_WORKERS,
         pin_memory=True,
         drop_last=True,
     )
 
-    best_iou = 0
+    best_avg_iou = 0
     prev_ckpt_path = ".pth"
     start_time = time()
-    cnt = 0
     for epoch in range(1, config.N_EPOCHS + 1):
         accum_pixel_loss = 0
         accum_link_loss = 0
@@ -121,8 +122,8 @@ if __name__ == "__main__":
 
             with torch.autocast(
                 device_type=config.DEVICE.type,
-                dtype=torch.float16,
-                enabled=True if config.AUTOCAST else False,
+                dtype=torch.float16 if config.DEVICE.type == "cuda" else torch.bfloat16,
+                enabled=True if config.AMP else False,
             ):
                 pixel_pred, link_pred = model(image)
                 pixel_loss, link_loss = crit(
@@ -134,7 +135,7 @@ if __name__ == "__main__":
                 )
                 loss = config.LAMB * pixel_loss + link_loss
             optim.zero_grad()
-            if config.AUTOCAST:
+            if config.AMP:
                 scaler.scale(loss).backward()
                 scaler.step(optim)
                 scaler.update()
@@ -144,15 +145,17 @@ if __name__ == "__main__":
 
             accum_pixel_loss += pixel_loss.item()
             accum_link_loss += link_loss.item()
-            cnt += 1
 
         ### Validate.
-        print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
-        print(f"""[ Pixel loss: {accum_pixel_loss / cnt:.6f} ]""", end="")
-        print(f"""[ Link loss: {accum_link_loss / cnt:.6f} ]""")
+        # avg_iou = validate(model=model, val_dl=val_dl)
+        avg_iou = validate(model=model, val_dl=train_dl)
 
-        iou = validate(model=model, val_dl=val_dl)
-        if iou > best_iou:
+        print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
+        print(f"""[ Pixel loss: {accum_pixel_loss / len(train_dl):.4f} ]""", end="")
+        print(f"""[ Link loss: {accum_link_loss / len(train_dl):.4f} ]""", end="")
+        print(f"""[ Average pixel IoU: {avg_iou:.3f} ]""")
+
+        if avg_iou > best_avg_iou:
             cur_ckpt_path = config.CKPT_DIR/f"""epoch_{epoch}.pth"""
             save_checkpoint(
                 epoch=epoch, model=model, optim=optim, scaler=scaler, save_path=cur_ckpt_path,
@@ -161,8 +164,7 @@ if __name__ == "__main__":
             prev_ckpt_path = Path(prev_ckpt_path)
             if prev_ckpt_path.exists():
                 prev_ckpt_path.unlink()
-            best_iou = iou
+            best_avg_iou = avg_iou
             prev_ckpt_path = cur_ckpt_path
 
         start_time = time()
-        cnt = 0

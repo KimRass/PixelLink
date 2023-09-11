@@ -35,10 +35,12 @@ class InstanceBalancedCELoss(nn.Module):
     # "$B_{i} = S / N$"
     # "$S = \sum^{N}_{i} S_{i}, \forall i \in {1, \ldots, N}$"
     def forward(self, pixel_pred, pixel_gt, pixel_weight, link_pred, link_gt):
+        copied = pixel_weight.clone()
+
         ### Pixel loss
         pixel_pred = rearrange(pixel_pred, pattern="b c h w -> (b h w) c")
         pixel_gt = rearrange(pixel_gt, pattern="b c h w -> (b h w) c").squeeze()
-        pixel_weight2 = rearrange(pixel_weight, pattern="b c h w -> (b h w) c").squeeze()
+        pixel_weight = rearrange(pixel_weight, pattern="b c h w -> (b h w) c").squeeze()
 
         # "The loss on pixel classification task is: $L_{pixel} = \frac{1}{1 + r)S}WL_{pixel_CE}$
         # where $L_{pixel_CE} is the matrix of Cross-Entropy loss on text/non-text prediction.
@@ -46,12 +48,15 @@ class InstanceBalancedCELoss(nn.Module):
         # have a smaller weight. However, every instance contributes equally to the loss."
         pixel_ce_loss = self.ce(pixel_pred, pixel_gt)
         tot_area = pixel_gt.sum().item()
-        pixel_weight2 = self._apply_ohem(ce_loss=pixel_ce_loss, pixel_weight=pixel_weight2, tot_area=tot_area)
+        pixel_weight = self._apply_ohem(
+            ce_loss=pixel_ce_loss, pixel_weight=pixel_weight, tot_area=tot_area,
+        )
 
-        pixel_loss = (pixel_weight2 * pixel_ce_loss).sum()
+        pixel_loss = (pixel_weight * pixel_ce_loss).sum()
         pixel_loss /= (1 + config.NEG_POS_RATIO) * tot_area
 
         ### Link loss
+        pixel_weight = copied()
         # "$W_{pos_link}(i, j, k) = W(i, j) * (Y_link(i, j, k) == 1)$"
         pos_link_weight = (pixel_weight * (link_gt == 1))
         # "$W_{neg_link}(i, j, k) = W(i, j) * (Y_link(i, j, k) == 0)$"

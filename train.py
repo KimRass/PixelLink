@@ -31,11 +31,11 @@ def validate(model, val_dl):
     model.eval()
     accum_iou = 0
     with torch.no_grad():
-        for data in tqdm(val_dl):
-            image = data["image"].to(config.DEVICE)
-            pixel_gt = data["pixel_gt"].to(config.DEVICE)
+        for batch in tqdm(val_dl):
+            image = batch["image"].to(config.DEVICE)
+            pixel_gt = batch["pixel_gt"].to(config.DEVICE)
 
-            pixel_pred = model(image.unsqueeze(0))
+            pixel_pred = model(image)
             iou = get_pixel_iou(pixel_pred, pixel_gt)
 
             accum_iou += iou
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     prev_ckpt_path = ".pth"
     start_time = time()
     cnt = 0
-    for epoch in tqdm(range(1, config.N_EPOCHS + 1)):
+    for epoch in range(1, config.N_EPOCHS + 1):
         accum_pixel_loss = 0
         accum_link_loss = 0
         for step, batch in enumerate(train_dl, start=1):

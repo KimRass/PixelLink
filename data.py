@@ -59,6 +59,13 @@ class MenuImageDataset(Dataset):
         self.scale_factor = 0.5 if mode == "2s" else 0.25
         self.path_pairs = _get_path_pairs(self.data_dir)
 
+        self.color_jitter = T.RandomApply(
+            [T.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1)],
+            p=0.5,
+            # p=1,
+        )
+        # image = Image.open("/Users/jongbeomkim/Documents/datasets/menu_images/1_1_image.jpg").convert("RGB")
+
     def get_bboxes(self, txt_path):
         bboxes = list()
         with open(txt_path, mode="r") as f:
@@ -209,6 +216,7 @@ class MenuImageDataset(Dataset):
         if self.split == "train":
             image, bboxes = self._randomly_scale(image=image, bboxes=bboxes)
             image, bboxes = self._randomly_shift_then_crop(image=image, bboxes=bboxes)
+            image = self.color_jitter(image)
         image = _pad_input_image(image)
         # image.show()
 

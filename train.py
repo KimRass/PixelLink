@@ -147,8 +147,8 @@ if __name__ == "__main__":
             accum_link_loss += link_loss.item()
 
         ### Validate.
-        # avg_iou = validate(model=model, val_dl=val_dl)
-        avg_iou = validate(model=model, val_dl=train_dl)
+        avg_iou = validate(model=model, val_dl=val_dl)
+        # avg_iou = validate(model=model, val_dl=train_dl)
 
         print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
         print(f"""[ Pixel loss: {accum_pixel_loss / len(train_dl):.4f} ]""", end="")

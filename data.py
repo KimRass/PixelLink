@@ -90,6 +90,7 @@ class MenuImageDataset(Dataset):
             # p=1,
         )
         # image = Image.open("/Users/jongbeomkim/Documents/datasets/menu_images/1_1_image.jpg").convert("RGB")
+        # color_jitter(image).show()
 
     def get_bboxes(self, txt_path):
         bboxes = list()

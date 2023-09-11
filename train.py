@@ -27,11 +27,10 @@ def get_args():
 
 
 def validate(model, val_dl):
-    print("Validating...")
     model.eval()
     accum_iou = 0
     with torch.no_grad():
-        for batch in tqdm(val_dl):
+        for batch in val_dl:
             image = batch["image"].to(config.DEVICE)
             pixel_gt = batch["pixel_gt"].to(config.DEVICE)
 
@@ -148,8 +147,8 @@ if __name__ == "__main__":
 
         ### Validate.
         print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
-        print(f"""[ Pixel loss: {accum_pixel_loss / cnt:.6f} ]""", end="")
-        print(f"""[ Link loss: {accum_link_loss / cnt:.6f} ]""")
+        print(f"""[ Pixel loss: {accum_pixel_loss / cnt:.4f} ]""", end="")
+        print(f"""[ Link loss: {accum_link_loss / cnt:.4f} ]""")
 
         iou = validate(model=model, val_dl=val_dl)
         if iou > best_iou:

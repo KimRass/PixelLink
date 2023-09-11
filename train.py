@@ -114,7 +114,7 @@ if __name__ == "__main__":
     for epoch in range(1, config.N_EPOCHS + 1):
         accum_pixel_loss = 0
         accum_link_loss = 0
-        for step, batch in enumerate(train_dl, start=1):
+        for step, batch in tqdm(enumerate(train_dl, start=1)):
             image = batch["image"].to(config.DEVICE)
             pixel_gt = batch["pixel_gt"].to(config.DEVICE)
             pixel_weight = batch["pixel_weight"].to(config.DEVICE)

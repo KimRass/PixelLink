@@ -167,6 +167,11 @@ class MenuImageDataset(Dataset):
         bboxes = bboxes[(bboxes["l"] != bboxes["r"]) & (bboxes["t"] != bboxes["b"])]
         return image, bboxes
 
+    def _randomly_adjust_b_and_s(self, image):
+        image = TF.adjust_brightness(image, random.uniform(0.5, 1.5))
+        image = TF.adjust_saturation(image, random.uniform(0.5, 1.5))
+        return image
+
     def _get_text_seg_map(self, image: Image.Image, bboxes: pd.DataFrame, pos_pixels):
         w, h = image.size
         canvas = torch.zeros(size=(h, w), dtype=torch.long)

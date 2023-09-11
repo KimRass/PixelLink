@@ -31,9 +31,9 @@ def validate(model, val_dl):
     model.eval()
     accum_iou = 0
     with torch.no_grad():
-        for batch in enumerate(val_dl, start=1):
-            image = batch["image"].to(config.DEVICE)
-            pixel_gt = batch["pixel_gt"].to(config.DEVICE)
+        for data in tqdm(val_dl):
+            image = data["image"].to(config.DEVICE)
+            pixel_gt = data["pixel_gt"].to(config.DEVICE)
 
             pixel_pred = model(image.unsqueeze(0))
             iou = get_pixel_iou(pixel_pred, pixel_gt)
@@ -113,7 +113,7 @@ if __name__ == "__main__":
     for epoch in tqdm(range(1, config.N_EPOCHS + 1)):
         accum_pixel_loss = 0
         accum_link_loss = 0
-        for step, batch in tqdm(enumerate(train_dl, start=1), total=len(train_dl)):
+        for step, batch in enumerate(train_dl, start=1):
             image = batch["image"].to(config.DEVICE)
             pixel_gt = batch["pixel_gt"].to(config.DEVICE)
             pixel_weight = batch["pixel_weight"].to(config.DEVICE)

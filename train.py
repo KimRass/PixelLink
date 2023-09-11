@@ -35,7 +35,7 @@ def validate(model, val_dl):
             image = batch["image"].to(config.DEVICE)
             pixel_gt = batch["pixel_gt"].to(config.DEVICE)
 
-            pixel_pred = model(image)
+            pixel_pred, _ = model(image)
             iou = get_pixel_iou(pixel_pred, pixel_gt)
 
             accum_iou += iou

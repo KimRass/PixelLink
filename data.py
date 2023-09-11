@@ -21,6 +21,7 @@ from pathlib import Path
 import random
 import math
 import filetype
+from tqdm.auto import tqdm
 
 from utils import _pad_input_image
 
@@ -41,11 +42,36 @@ def _get_path_pairs(data_dir):
     return path_pairs
 
 
+def _get_images(path_pairs):
+    images = [Image.open(img_path).convert("RGB") for _, img_path in path_pairs]
+    return images
+
+
 def get_whs(path_pairs):
-    images = [Image.open(img_path).convert("RGB") for txt_path, img_path in path_pairs]
+    images = _get_images(path_pairs)
     whs = [image.size for image in images]
     whs = [(min(w, h), max(w, h)) for w, h in whs]
     return whs
+
+
+def get_mean_and_std(data_dir):
+    images = _get_images(path_pairs)
+    data_dir = Path(data_dir)
+
+    sum_rgb = 0
+    sum_rgb_square = 0
+    sum_resol = 0
+    for img_path in tqdm(list(data_dir.glob(f"""**/*.{ext}"""))):
+        pil_img = Image.open(img_path)
+        tensor = T.ToTensor()(pil_img)
+        
+        sum_rgb += tensor.sum(dim=(1, 2))
+        sum_rgb_square += (tensor ** 2).sum(dim=(1, 2))
+        _, h, w = tensor.shape
+        sum_resol += h * w
+    mean = torch.round(sum_rgb / sum_resol, decimals=3)
+    std = torch.round((sum_rgb_square / sum_resol - mean ** 2) ** 0.5, decimals=3)
+    return mean, std
 
 
 class MenuImageDataset(Dataset):

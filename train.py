@@ -21,6 +21,7 @@ def get_args():
 
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument("--batch_size", type=int, required=True)
+    parser.add_argument("--ckpt_path", type=str, required=False)
 
     args = parser.parse_args()
     return args
@@ -108,10 +109,20 @@ if __name__ == "__main__":
         drop_last=True,
     )
 
+    ### Resume
+    if args.ckpt_path:
+        prev_ckpt_path = args.ckpt_path
+        ckpt = torch.load(prev_ckpt_path, map_location=config.DEVICE)
+        init_epoch = ckpt["epoch"]
+        model.load_state_dict(ckpt["model"])
+        optim.load_state_dict(ckpt["optimizer"])
+        scaler.load_state_dict(ckpt["scaler"])
+    else:
+        prev_ckpt_path = ".pth"
+
     best_avg_iou = 0
-    prev_ckpt_path = ".pth"
     start_time = time()
-    for epoch in range(1, config.N_EPOCHS + 1):
+    for epoch in range(init_epoch + 1, config.N_EPOCHS + 1):
         accum_pixel_loss = 0
         accum_link_loss = 0
         for step, batch in enumerate(tqdm(train_dl, total=len(train_dl)), start=1):

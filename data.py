@@ -55,15 +55,14 @@ def get_whs(path_pairs):
 
 
 def get_mean_and_std(data_dir):
+    path_pairs = _get_path_pairs(data_dir)
     images = _get_images(path_pairs)
-    data_dir = Path(data_dir)
 
     sum_rgb = 0
     sum_rgb_square = 0
     sum_resol = 0
-    for img_path in tqdm(list(data_dir.glob(f"""**/*.{ext}"""))):
-        pil_img = Image.open(img_path)
-        tensor = T.ToTensor()(pil_img)
+    for image in tqdm(images):
+        tensor = T.ToTensor()(image)
         
         sum_rgb += tensor.sum(dim=(1, 2))
         sum_rgb_square += (tensor ** 2).sum(dim=(1, 2))
@@ -268,7 +267,7 @@ class MenuImageDataset(Dataset):
         )[0].long()
 
         image = TF.to_tensor(image)
-        image = TF.normalize(image, mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
+        image = TF.normalize(image, mean=(0.745, 0.714, 0.681), std=(0.288, 0.300, 0.320))
 
         data = {
             "image": image,

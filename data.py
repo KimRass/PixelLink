@@ -16,6 +16,7 @@ import torchvision.transforms as T
 import torchvision.transforms.functional as TF
 from PIL import Image
 import pandas as pd
+import numpy as np
 from pathlib import Path
 import random
 import math
@@ -29,6 +30,24 @@ Image.MAX_IMAGE_PIXELS = None
 # torch.set_printoptions(precision=4, edgeitems=12, linewidth=220)
 
 
+def _get_path_pairs(data_dir):
+    path_pairs = list()
+    for txt_path in Path(data_dir).glob("*.txt"):
+        for ext in [".jpg", ".png"]:
+            img_path = Path(str(txt_path.with_suffix(ext)).replace("label", "image"))
+            if img_path.exists() and filetype.is_image(img_path):
+                path_pairs.append((txt_path, img_path))
+                break
+    return path_pairs
+
+
+def get_whs(path_pairs):
+    images = [Image.open(img_path).convert("RGB") for txt_path, img_path in path_pairs]
+    whs = [image.size for image in images]
+    whs = [(min(w, h), max(w, h)) for w, h in whs]
+    return whs
+
+
 class MenuImageDataset(Dataset):
     def __init__(self, data_dir, img_size, area_thresh, split="train", mode="2s"):
 
@@ -38,16 +57,7 @@ class MenuImageDataset(Dataset):
         self.split = split
 
         self.scale_factor = 0.5 if mode == "2s" else 0.25
-        self._get_path_pairs()
-
-    def _get_path_pairs(self):
-        self.path_pairs = list()
-        for txt_path in Path(self.data_dir).glob("*.txt"):
-            for ext in [".jpg", ".png"]:
-                img_path = Path(str(txt_path.with_suffix(ext)).replace("label", "image"))
-                if img_path.exists() and filetype.is_image(img_path):
-                    self.path_pairs.append((txt_path, img_path))
-                    break
+        self.path_pairs = _get_path_pairs(self.data_dir)
 
     def get_bboxes(self, txt_path):
         bboxes = list()
@@ -232,6 +242,15 @@ class MenuImageDataset(Dataset):
 
 
 if __name__ == "__main__":
+    data_dir = "/Users/jongbeomkim/Documents/datasets/menu_images/"
+    path_pairs = _get_path_pairs(data_dir)
+    len(path_pairs)
+    txt_path, img_path = path_pairs[0]
+    whs
+
+    ws = sorted([wh[0] for wh in whs])
+    (np.array(ws) > 3000).sum()
+
     data_dir = "/Users/jongbeomkim/Documents/datasets/menu_images"
     ds = MenuImageDataset(data_dir=data_dir, img_size=1024, area_thresh=100)
     N_WORKERS = 0

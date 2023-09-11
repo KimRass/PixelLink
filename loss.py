@@ -10,10 +10,11 @@ torch.set_printoptions(precision=4, edgeitems=12, linewidth=220)
 
 
 class InstanceBalancedCELoss(nn.Module):
-    def __init__(self, lamb=2):
+    # def __init__(self, lamb=2):
+    def __init__(self):
         super().__init__()
 
-        self.lamb = lamb
+        # self.lamb = lamb
 
         self.ce = nn.CrossEntropyLoss(reduction="none")
 
@@ -68,8 +69,9 @@ class InstanceBalancedCELoss(nn.Module):
         link_loss = (pos_link_ce_loss / pos_link_weight.sum()) + (neg_link_ce_loss / neg_link_weight.sum())
         link_loss = link_loss.sum()
 
-        loss = self.lamb * pixel_loss + link_loss
-        return loss
+        # loss = self.lamb * pixel_loss + link_loss
+        # return loss
+        return pixel_loss, link_loss
 
 
 if __name__ == "__main__":

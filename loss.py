@@ -56,7 +56,7 @@ class InstanceBalancedCELoss(nn.Module):
         pixel_loss /= (1 + config.NEG_POS_RATIO) * tot_area
 
         ### Link loss
-        pixel_weight = copied()
+        pixel_weight = copied
         # "$W_{pos_link}(i, j, k) = W(i, j) * (Y_link(i, j, k) == 1)$"
         pos_link_weight = (pixel_weight * (link_gt == 1))
         # "$W_{neg_link}(i, j, k) = W(i, j) * (Y_link(i, j, k) == 0)$"

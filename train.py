@@ -21,6 +21,7 @@ def get_args():
 
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument("--batch_size", type=int, required=True)
+    parser.add_argument("--n_workers", type=int, required=False, default=0)
     parser.add_argument("--ckpt_path", type=str, required=False)
 
     args = parser.parse_args()

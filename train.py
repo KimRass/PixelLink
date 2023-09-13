@@ -152,8 +152,8 @@ if __name__ == "__main__":
                     enabled=True if config.AMP else False,
                 ):
                     pixel_pred, link_pred = model(image)
-                    out = mask_to_bbox(pixel_pred=pixel_pred, link_pred=link_pred)
-                    print(out)
+                    # out = mask_to_bbox(pixel_pred=pixel_pred, link_pred=link_pred)
+                    # print(out)
                     pixel_loss, link_loss = crit(
                         pixel_pred=pixel_pred,
                         pixel_gt=pixel_gt,

@@ -121,6 +121,7 @@ if __name__ == "__main__":
         scaler.load_state_dict(ckpt["scaler"])
         best_avg_iou = ckpt["best_average_iou"]
     else:
+        init_epoch = 0
         prev_ckpt_path = ".pth"
         best_avg_iou = 0
 

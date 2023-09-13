@@ -23,7 +23,7 @@ import math
 import filetype
 from tqdm.auto import tqdm
 
-from utils import _pad_input_image
+from utils import _pad_input_image, resize_with_thresh
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -74,10 +74,11 @@ def get_mean_and_std(data_dir):
 
 
 class MenuImageDataset(Dataset):
-    def __init__(self, data_dir, img_size, area_thresh, split="train", mode="2s"):
+    def __init__(self, data_dir, img_size, size_thresh, area_thresh, split="train", mode="2s"):
 
         self.data_dir = data_dir
         self.img_size = img_size
+        self.size_thresh = size_thresh
         self.area_thresh = area_thresh
         self.split = split
 
@@ -241,7 +242,9 @@ class MenuImageDataset(Dataset):
     def __getitem__(self, idx):
         txt_path, img_path = self.path_pairs[idx]
         bboxes = self.get_bboxes(txt_path)
+        img_path = "/Users/jongbeomkim/Documents/datasets/menu_images/389_1361_image.jpg"
         image = Image.open(img_path).convert("RGB")
+        image = resize_with_thresh(image, size_thresh=self.size_thresh)
 
         if self.split == "train":
             image, bboxes = self._randomly_scale(image=image, bboxes=bboxes)
@@ -284,20 +287,12 @@ class MenuImageDataset(Dataset):
         return data
 
 
-# if __name__ == "__main__":
-#     data_dir = "/Users/jongbeomkim/Documents/datasets/menu_images/"
-#     path_pairs = _get_path_pairs(data_dir)
-#     len(path_pairs)
-#     txt_path, img_path = path_pairs[0]
-#     whs
-
-#     ws = sorted([wh[0] for wh in whs])
-#     (np.array(ws) > 3000).sum()
-
-#     data_dir = "/Users/jongbeomkim/Documents/datasets/menu_images"
-#     ds = MenuImageDataset(data_dir=data_dir, img_size=1024, area_thresh=100)
-#     N_WORKERS = 0
-#     dl = DataLoader(ds, batch_size=1, num_workers=N_WORKERS, pin_memory=True, drop_last=True)
-#     di = iter(dl)
-#     for _ in range(len(dl)):
-#         data = next(di)
+if __name__ == "__main__":
+    data_dir = "/Users/jongbeomkim/Documents/datasets/menu_images"
+    path_pairs = _get_path_pairs(data_dir)
+    images = _get_images(path_pairs)
+    17403188 ** 0.5
+    61151116 ** 0.5
+    50000000 ** 0.5
+    sorted([(w * h, i) for i, (w, h) in enumerate(whs)])
+    image = images[1516]

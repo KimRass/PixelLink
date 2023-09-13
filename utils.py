@@ -86,6 +86,37 @@ def _apply_jet_colormap(img):
     return img_jet
 
 
+def _get_w_and_h(img):
+    if img.ndim == 2:
+        h, w = img.shape
+    else:
+        h, w, _ = img.shape
+    return w, h
+
+
+def _resize_image(img, w, h):
+    ori_w, ori_h = _get_w_and_h(img)
+    if w < ori_w or h < ori_h:
+        interpolation = cv2.INTER_AREA
+    else:
+        interpolation = cv2.INTER_LANCZOS4
+    resized = cv2.resize(src=img, dsize=(w, h), interpolation=interpolation)
+    return resized
+
+
+def resize_with_thresh(image, size_thresh=3000):
+    w, h = image.size
+    if min(w, h) > size_thresh:
+        if w < h:
+            ori_w = round(size_thresh / w * w)
+            ori_h = round(size_thresh / w * h)
+        else:
+            ori_w = round(size_thresh / h * w)
+            ori_h = round(size_thresh / h * h)
+    new_image = image.resize(size=(ori_w, ori_h))
+    return new_image
+
+
 def postprocess_pixel_gt(pixel_gt):
     copied = pixel_gt.clone()
     copied = copied.detach().cpu().numpy()

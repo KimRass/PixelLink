@@ -57,6 +57,26 @@ def save_checkpoint(epoch, model, optim, scaler, best_avg_iou, save_path):
     torch.save(ckpt, str(save_path))
 
 
+def resume(ckpt_path, model, optim, scaler):
+    if ckpt_path:
+        ckpt = torch.load(ckpt_path, map_location=config.DEVICE)
+        init_epoch = ckpt["epoch"]
+        model.load_state_dict(ckpt["model"])
+        optim.load_state_dict(ckpt["optimizer"])
+        scaler.load_state_dict(ckpt["scaler"])
+        best_avg_iou = ckpt["best_average_iou"]
+
+        prev_ckpt_path = ckpt_path
+
+        print(f"Resume from checkpoint '{Path(ckpt_path).name}'.")
+        print(f"Previous best average pixel IoU: {best_avg_iou}.")
+    else:
+        init_epoch = 0
+        prev_ckpt_path = ".pth"
+        best_avg_iou = 0
+    return init_epoch, prev_ckpt_path, best_avg_iou
+
+
 if __name__ == "__main__":
     gc.collect()
     torch.cuda.empty_cache()
@@ -71,7 +91,6 @@ if __name__ == "__main__":
 
     model = PixelLink2s(pretrained_vgg16=config.PRETRAINED_VGG16).to(config.DEVICE)
 
-    # crit = InstanceBalancedCELoss(lamb=config.LAMB)
     crit = InstanceBalancedCELoss()
 
     optim = SGD(
@@ -87,6 +106,7 @@ if __name__ == "__main__":
     ds = MenuImageDataset(
         data_dir=args.data_dir,
         img_size=config.IMG_SIZE,
+        size_thresh=config.SIZE_THRESH,
         area_thresh=config.AREA_THRESH,
         split="train",
     )
@@ -109,19 +129,11 @@ if __name__ == "__main__":
     )
 
     ### Resume
-    if args.ckpt_path:
-        prev_ckpt_path = args.ckpt_path
-        ckpt = torch.load(prev_ckpt_path, map_location=config.DEVICE)
-        init_epoch = ckpt["epoch"]
-        model.load_state_dict(ckpt["model"])
-        optim.load_state_dict(ckpt["optimizer"])
-        scaler.load_state_dict(ckpt["scaler"])
-        best_avg_iou = ckpt["best_average_iou"]
-    else:
-        init_epoch = 0
-        prev_ckpt_path = ".pth"
-        best_avg_iou = 0
+    init_epoch, prev_ckpt_path, best_avg_iou = resume(
+        ckpt_path=args.ckpt_path, model=model, optim=optim, scaler=scaler,
+    )
 
+    # Training
     start_time = time()
     for epoch in range(init_epoch + 1, config.N_EPOCHS + 1):
         accum_pixel_loss = 0
@@ -160,7 +172,6 @@ if __name__ == "__main__":
 
         ### Validate.
         avg_iou = validate(model=model, val_dl=val_dl)
-        # avg_iou = validate(model=model, val_dl=train_dl)
 
         print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
         print(f"""[ Pixel loss: {accum_pixel_loss / len(train_dl):.4f} ]""", end="")

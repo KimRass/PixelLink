@@ -10,6 +10,7 @@ NEG_POS_RATIO = 3 # "$r$ is the negative-positive ratio and is set to 3 as a com
 N_NEIGHBORS = 8
 IMG_SIZE = 1024
 FEAT_MAP_SIZE = IMG_SIZE // 2
+SIZE_THRESH = 3000
 AREA_THRESH = 2500
 LAMB = 0.2
 

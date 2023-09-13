@@ -14,6 +14,7 @@ from data import MenuImageDataset
 from loss import InstanceBalancedCELoss
 from evaluate import get_pixel_iou
 from utils import get_elapsed_time
+from postprocess import mask_to_bbox
 
 
 def get_args():
@@ -69,7 +70,7 @@ def resume(ckpt_path, model, optim, scaler):
         prev_ckpt_path = ckpt_path
 
         print(f"Resume from checkpoint '{Path(ckpt_path).name}'.")
-        print(f"Previous best average pixel IoU: {best_avg_iou:.3f}.")
+        print(f"Previous best average pixel IoU: {best_avg_iou:.3f}")
     else:
         init_epoch = 0
         prev_ckpt_path = ".pth"
@@ -151,6 +152,8 @@ if __name__ == "__main__":
                     enabled=True if config.AMP else False,
                 ):
                     pixel_pred, link_pred = model(image)
+                    out = mask_to_bbox(pixel_pred=pixel_pred, link_pred=link_pred)
+                    print(out)
                     pixel_loss, link_loss = crit(
                         pixel_pred=pixel_pred,
                         pixel_gt=pixel_gt,

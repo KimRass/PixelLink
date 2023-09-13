@@ -27,7 +27,6 @@ FIN_LR = 1e-2
 
 ### Training
 SEED = 33
-N_WORKERS = 4
 AMP = True
 # N_WORKERS = 0
 # AMP = False

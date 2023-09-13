@@ -44,13 +44,14 @@ def validate(model, val_dl):
     return avg_iou
 
 
-def save_checkpoint(epoch, model, optim, scaler, save_path):
+def save_checkpoint(epoch, model, optim, scaler, best_avg_iou, save_path):
     Path(save_path).parent.mkdir(parents=True, exist_ok=True)
     ckpt = {
         "epoch": epoch,
         "model": model.state_dict(),
         "optimizer": optim.state_dict(),
         "scaler": scaler.state_dict(),
+        "best_average_iou": best_avg_iou,
     }
     torch.save(ckpt, str(save_path))
 
@@ -62,7 +63,7 @@ if __name__ == "__main__":
     args = get_args()
 
     print(f"""SEED = {config.SEED}""")
-    print(f"""N_WORKERS = {config.N_WORKERS}""")
+    print(f"""N_WORKERS = {args.n_workers}""")
     print(f"""BATCH_SIZE = {args.batch_size}""")
     print(f"""DEVICE = {config.DEVICE}""")
     print(f"""AMP = {config.AMP}""")
@@ -96,7 +97,7 @@ if __name__ == "__main__":
         train_ds,
         batch_size=args.batch_size,
         # batch_size=2,
-        num_workers=config.N_WORKERS,
+        num_workers=args.n_workers,
         pin_memory=True,
         drop_last=True,
     )
@@ -104,7 +105,7 @@ if __name__ == "__main__":
         val_ds,
         batch_size=args.batch_size,
         # batch_size=2,
-        num_workers=config.N_WORKERS,
+        num_workers=args.n_workers,
         pin_memory=True,
         drop_last=True,
     )
@@ -117,10 +118,11 @@ if __name__ == "__main__":
         model.load_state_dict(ckpt["model"])
         optim.load_state_dict(ckpt["optimizer"])
         scaler.load_state_dict(ckpt["scaler"])
+        best_avg_iou = ckpt["best_average_iou"]
     else:
         prev_ckpt_path = ".pth"
+        best_avg_iou = 0
 
-    best_avg_iou = 0
     start_time = time()
     for epoch in range(init_epoch + 1, config.N_EPOCHS + 1):
         accum_pixel_loss = 0
@@ -169,7 +171,7 @@ if __name__ == "__main__":
         if avg_iou > best_avg_iou:
             cur_ckpt_path = config.CKPT_DIR/f"""epoch_{epoch}.pth"""
             save_checkpoint(
-                epoch=epoch, model=model, optim=optim, scaler=scaler, save_path=cur_ckpt_path,
+                epoch=epoch, model=model, optim=optim, scaler=scaler, best_avg_iou=best_avg_iou, save_path=cur_ckpt_path,
             )
             print(f"""Saved checkpoint.""")
             prev_ckpt_path = Path(prev_ckpt_path)

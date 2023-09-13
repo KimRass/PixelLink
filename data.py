@@ -242,7 +242,6 @@ class MenuImageDataset(Dataset):
     def __getitem__(self, idx):
         txt_path, img_path = self.path_pairs[idx]
         bboxes = self.get_bboxes(txt_path)
-        img_path = "/Users/jongbeomkim/Documents/datasets/menu_images/389_1361_image.jpg"
         image = Image.open(img_path).convert("RGB")
         image = resize_with_thresh(image, size_thresh=self.size_thresh)
 

@@ -45,8 +45,8 @@ def validate(model, val_dl):
     return avg_iou
 
 
-def save_checkpoint(epoch, model, optim, scaler, best_avg_iou, save_path):
-    Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+def save_checkpoint(epoch, model, optim, scaler, best_avg_iou, ckpt_path):
+    Path(ckpt_path).parent.mkdir(parents=True, exist_ok=True)
     ckpt = {
         "epoch": epoch,
         "model": model.state_dict(),
@@ -54,7 +54,7 @@ def save_checkpoint(epoch, model, optim, scaler, best_avg_iou, save_path):
         "scaler": scaler.state_dict(),
         "best_average_iou": best_avg_iou,
     }
-    torch.save(ckpt, str(save_path))
+    torch.save(ckpt, str(ckpt_path))
 
 
 def resume(ckpt_path, model, optim, scaler):
@@ -69,7 +69,7 @@ def resume(ckpt_path, model, optim, scaler):
         prev_ckpt_path = ckpt_path
 
         print(f"Resume from checkpoint '{Path(ckpt_path).name}'.")
-        print(f"Previous best average pixel IoU: {best_avg_iou}.")
+        print(f"Previous best average pixel IoU: {best_avg_iou:.3f}.")
     else:
         init_epoch = 0
         prev_ckpt_path = ".pth"
@@ -179,15 +179,21 @@ if __name__ == "__main__":
         print(f"""[ Average pixel IoU: {avg_iou:.3f} ]""")
 
         if avg_iou > best_avg_iou:
-            cur_ckpt_path = config.CKPT_DIR/f"""epoch_{epoch}.pth"""
+            best_avg_iou = avg_iou
+            ckpt_path = config.CKPT_DIR/f"""epoch_{epoch}.pth"""
             save_checkpoint(
-                epoch=epoch, model=model, optim=optim, scaler=scaler, best_avg_iou=best_avg_iou, save_path=cur_ckpt_path,
+                epoch=epoch,
+                model=model,
+                optim=optim,
+                scaler=scaler,
+                best_avg_iou=best_avg_iou,
+                ckpt_path=ckpt_path,
             )
             print(f"""Saved checkpoint.""")
+
             prev_ckpt_path = Path(prev_ckpt_path)
             if prev_ckpt_path.exists():
                 prev_ckpt_path.unlink()
-            best_avg_iou = avg_iou
-            prev_ckpt_path = cur_ckpt_path
+            prev_ckpt_path = ckpt_path
 
         start_time = time()

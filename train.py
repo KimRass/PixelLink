@@ -64,8 +64,8 @@ if __name__ == "__main__":
     args = get_args()
 
     print(f"""SEED = {config.SEED}""")
-    print(f"""N_WORKERS = {args.n_workers}""")
-    print(f"""BATCH_SIZE = {args.batch_size}""")
+    # print(f"""N_WORKERS = {args.n_workers}""")
+    # print(f"""BATCH_SIZE = {args.batch_size}""")
     print(f"""DEVICE = {config.DEVICE}""")
     print(f"""AMP = {config.AMP}""")
 
@@ -86,7 +86,6 @@ if __name__ == "__main__":
 
     ds = MenuImageDataset(
         data_dir=args.data_dir,
-        # data_dir="/Users/jongbeomkim/Documents/datasets/menu_images",
         img_size=config.IMG_SIZE,
         area_thresh=config.AREA_THRESH,
         split="train",
@@ -97,7 +96,6 @@ if __name__ == "__main__":
     train_dl = DataLoader(
         train_ds,
         batch_size=args.batch_size,
-        # batch_size=2,
         num_workers=args.n_workers,
         pin_memory=True,
         drop_last=True,
@@ -105,7 +103,6 @@ if __name__ == "__main__":
     val_dl = DataLoader(
         val_ds,
         batch_size=args.batch_size,
-        # batch_size=2,
         num_workers=args.n_workers,
         pin_memory=True,
         drop_last=True,

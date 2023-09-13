@@ -148,8 +148,11 @@ class MenuImageDataset(Dataset):
                 tbox = tbox_mask * weight
 
                 weights.append(tbox)
-            pixel_weight = torch.stack(weights, dim=1).sum(dim=1)
-            pixel_weight = pixel_weight.unsqueeze(0)
+            if weights:
+                pixel_weight = torch.stack(weights, dim=1).sum(dim=1)
+                pixel_weight = pixel_weight.unsqueeze(0)
+            else:
+                pixel_weight = torch.ones(size=(1, self.img_size, self.img_size))
         return pixel_weight
 
     # "Pixels within text instances are labeled as positive (i.e., text pixels), and otherwise

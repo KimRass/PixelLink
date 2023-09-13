@@ -3,6 +3,8 @@
 
 import torch
 from pathlib import Path
+import random
+import numpy as np
 
 ### Data
 N_NEIGHBORS = 8
@@ -28,6 +30,10 @@ FIN_LR = 1e-2
 
 ### Training
 SEED = 33
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
 AMP = True
 # N_WORKERS = 0
 # AMP = False

@@ -295,3 +295,6 @@ if __name__ == "__main__":
     50000000 ** 0.5
     sorted([(w * h, i) for i, (w, h) in enumerate(whs)])
     image = images[1516]
+
+    len(images)
+    images[100].show()

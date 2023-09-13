@@ -113,8 +113,10 @@ def resize_with_thresh(image, size_thresh=3000):
         else:
             ori_w = round(size_thresh / h * w)
             ori_h = round(size_thresh / h * h)
-    new_image = image.resize(size=(ori_w, ori_h))
-    return new_image
+        new_image = image.resize(size=(ori_w, ori_h))
+        return new_image
+    else:
+        return image
 
 
 def postprocess_pixel_gt(pixel_gt):

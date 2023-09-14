@@ -145,7 +145,7 @@ if __name__ == "__main__":
         accum_link_loss = 0
         # for step, batch in enumerate(tqdm(train_dl, total=len(train_dl)), start=1):
         # for step, batch in enumerate(train_dl, start=1):
-        for step, image, pixel_gt, link_gt, pixel_weight in enumerate(train_dl, start=1):
+        for step, (image, pixel_gt, link_gt, pixel_weight) in enumerate(train_dl, start=1):
             # image = batch["image"].to(config.DEVICE)
             # pixel_gt = batch["pixel_gt"].to(config.DEVICE)
             # pixel_weight = batch["pixel_weight"].to(config.DEVICE)

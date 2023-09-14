@@ -196,7 +196,7 @@ class MenuImageDataset(Dataset):
 
         w, h = image.size
         size = (round(h * scale), round(w * scale))
-        image = TF.resize(image, size=size, antialias=True)
+        image = TF.resize(image.copy(), size=size, antialias=True)
 
         bboxes["l"] = bboxes["l"].apply(lambda x: round(x * scale))
         bboxes["t"] = bboxes["t"].apply(lambda x: round(x * scale))
@@ -257,10 +257,10 @@ class MenuImageDataset(Dataset):
         # bboxes = self.bboxes_ls[idx]
         # image = self.images[idx]
         txt_path, img_path = self.path_pairs[idx]
-        print(txt_path, img_path)
         bboxes = get_bboxes(txt_path)
         image = Image.open(img_path).convert("RGB")
         image = resize_with_thresh(image, size_thresh=self.size_thresh)
+        print(txt_path, img_path)
 
         if self.split == "train":
             image, bboxes = self._randomly_scale(image=image, bboxes=bboxes)

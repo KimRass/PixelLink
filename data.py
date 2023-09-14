@@ -264,8 +264,11 @@ class MenuImageDataset(Dataset):
 
         if self.split == "train":
             image, bboxes = self._randomly_scale(image=image, bboxes=bboxes)
+            print("a")
             image, bboxes = self._randomly_shift_then_crop(image=image, bboxes=bboxes)
+            print("b")
             image = self.color_jitter(image)
+            print("c")
         image = _pad_input_image(image)
         print("A")
 

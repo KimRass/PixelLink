@@ -111,9 +111,9 @@ if __name__ == "__main__":
         area_thresh=config.AREA_THRESH,
         split="train",
     )
-    train_ds_size = round(len(ds) * 0.9)
-    val_ds_size = len(ds) - train_ds_size
-    train_ds, val_ds = random_split(ds, lengths=(train_ds_size, val_ds_size))
+    # train_ds_size = round(len(ds) * 0.9)
+    # val_ds_size = len(ds) - train_ds_size
+    # train_ds, val_ds = random_split(ds, lengths=(train_ds_size, val_ds_size))
     train_dl = DataLoader(
         # train_ds,
         ds,
@@ -124,14 +124,14 @@ if __name__ == "__main__":
         pin_memory=True,
         drop_last=True,
     )
-    val_dl = DataLoader(
-        val_ds,
-        batch_size=args.batch_size,
-        shuffle=False,
-        num_workers=args.n_workers,
-        pin_memory=True,
-        drop_last=True,
-    )
+    # val_dl = DataLoader(
+    #     val_ds,
+    #     batch_size=args.batch_size,
+    #     shuffle=False,
+    #     num_workers=args.n_workers,
+    #     pin_memory=True,
+    #     drop_last=True,
+    # )
 
     ### Resume
     init_epoch, prev_ckpt_path, best_avg_iou = resume(

@@ -79,14 +79,9 @@ def resume(ckpt_path, model, optim, scaler):
 
 
 if __name__ == "__main__":
-    gc.collect()
-    torch.cuda.empty_cache()
-
     args = get_args()
 
     print(f"""SEED = {config.SEED}""")
-    # print(f"""N_WORKERS = {args.n_workers}""")
-    # print(f"""BATCH_SIZE = {args.batch_size}""")
     print(f"""DEVICE = {config.DEVICE}""")
     print(f"""AMP = {config.AMP}""")
 
@@ -112,27 +107,25 @@ if __name__ == "__main__":
         max_area_thresh=config.MAX_AREA_THRESH,
         split="train",
     )
-    # train_ds_size = round(len(ds) * 0.9)
-    # val_ds_size = len(ds) - train_ds_size
-    # train_ds, val_ds = random_split(ds, lengths=(train_ds_size, val_ds_size))
+    train_ds_size = round(len(ds) * 0.9)
+    val_ds_size = len(ds) - train_ds_size
+    train_ds, val_ds = random_split(ds, lengths=(train_ds_size, val_ds_size))
     train_dl = DataLoader(
-        # train_ds,
-        ds,
+        train_ds,
         batch_size=args.batch_size,
         shuffle=True,
-        # shuffle=False,
         num_workers=args.n_workers,
         pin_memory=True,
         drop_last=True,
     )
-    # val_dl = DataLoader(
-    #     val_ds,
-    #     batch_size=args.batch_size,
-    #     shuffle=False,
-    #     num_workers=args.n_workers,
-    #     pin_memory=True,
-    #     drop_last=True,
-    # )
+    val_dl = DataLoader(
+        val_ds,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.n_workers,
+        pin_memory=True,
+        drop_last=True,
+    )
 
     ### Resume
     init_epoch, prev_ckpt_path, best_avg_iou = resume(
@@ -144,70 +137,64 @@ if __name__ == "__main__":
     for epoch in range(init_epoch + 1, config.N_EPOCHS + 1):
         accum_pixel_loss = 0
         accum_link_loss = 0
-        # for step, batch in enumerate(tqdm(train_dl, total=len(train_dl)), start=1):
-        # for step, batch in enumerate(train_dl, start=1):
         for step, (image, pixel_gt, link_gt, pixel_weight) in enumerate(train_dl, start=1):
-            # image = batch["image"].to(config.DEVICE)
-            # pixel_gt = batch["pixel_gt"].to(config.DEVICE)
-            # pixel_weight = batch["pixel_weight"].to(config.DEVICE)
-            # link_gt = batch["link_gt"].to(config.DEVICE)
             image = image.to(config.DEVICE)
             pixel_gt = pixel_gt.to(config.DEVICE)
             link_gt = link_gt.to(config.DEVICE)
             pixel_weight = pixel_weight.to(config.DEVICE)
 
-        #     with torch.autocast(
-        #         device_type=config.DEVICE.type,
-        #         dtype=torch.float16 if config.DEVICE.type == "cuda" else torch.bfloat16,
-        #         enabled=True if config.AMP else False,
-        #     ):
-        #         pixel_pred, link_pred = model(image)
-        #         # out = mask_to_bbox(pixel_pred=pixel_pred, link_pred=link_pred)
-        #         # print(out)
-        #         pixel_loss, link_loss = crit(
-        #             pixel_pred=pixel_pred,
-        #             pixel_gt=pixel_gt,
-        #             pixel_weight=pixel_weight,
-        #             link_pred=link_pred,
-        #             link_gt=link_gt,
-        #         )
-        #         loss = config.LAMB * pixel_loss + link_loss
-        #     optim.zero_grad()
-        #     if config.AMP:
-        #         scaler.scale(loss).backward()
-        #         scaler.step(optim)
-        #         scaler.update()
-        #     else:
-        #         loss.backward()
-        #         optim.step()
+            with torch.autocast(
+                device_type=config.DEVICE.type,
+                dtype=torch.float16 if config.DEVICE.type == "cuda" else torch.bfloat16,
+                enabled=True if config.AMP else False,
+            ):
+                pixel_pred, link_pred = model(image)
+                # out = mask_to_bbox(pixel_pred=pixel_pred, link_pred=link_pred)
+                # print(out)
+                pixel_loss, link_loss = crit(
+                    pixel_pred=pixel_pred,
+                    pixel_gt=pixel_gt,
+                    pixel_weight=pixel_weight,
+                    link_pred=link_pred,
+                    link_gt=link_gt,
+                )
+                loss = config.LAMB * pixel_loss + link_loss
+            optim.zero_grad()
+            if config.AMP:
+                scaler.scale(loss).backward()
+                scaler.step(optim)
+                scaler.update()
+            else:
+                loss.backward()
+                optim.step()
 
-        #     accum_pixel_loss += pixel_loss.item()
-        #     accum_link_loss += link_loss.item()
+            accum_pixel_loss += pixel_loss.item()
+            accum_link_loss += link_loss.item()
 
-        # ### Validate.
-        # avg_iou = validate(model=model, val_dl=val_dl)
+        ### Validate.
+        avg_iou = validate(model=model, val_dl=val_dl)
 
-        # print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
-        # print(f"""[ Pixel loss: {accum_pixel_loss / len(train_dl):.4f} ]""", end="")
-        # print(f"""[ Link loss: {accum_link_loss / len(train_dl):.4f} ]""", end="")
-        # print(f"""[ Average pixel IoU: {avg_iou:.3f} ]""")
+        print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
+        print(f"""[ Pixel loss: {accum_pixel_loss / len(train_dl):.4f} ]""", end="")
+        print(f"""[ Link loss: {accum_link_loss / len(train_dl):.4f} ]""", end="")
+        print(f"""[ Average pixel IoU: {avg_iou:.3f} ]""")
 
-        # if avg_iou > best_avg_iou:
-        #     best_avg_iou = avg_iou
-        #     ckpt_path = config.CKPT_DIR/f"""epoch_{epoch}.pth"""
-        #     save_checkpoint(
-        #         epoch=epoch,
-        #         model=model,
-        #         optim=optim,
-        #         scaler=scaler,
-        #         best_avg_iou=best_avg_iou,
-        #         ckpt_path=ckpt_path,
-        #     )
-        #     print(f"""Saved checkpoint.""")
+        if avg_iou > best_avg_iou:
+            best_avg_iou = avg_iou
+            ckpt_path = config.CKPT_DIR/f"""epoch_{epoch}.pth"""
+            save_checkpoint(
+                epoch=epoch,
+                model=model,
+                optim=optim,
+                scaler=scaler,
+                best_avg_iou=best_avg_iou,
+                ckpt_path=ckpt_path,
+            )
+            print(f"""Saved checkpoint.""")
 
-        #     prev_ckpt_path = Path(prev_ckpt_path)
-        #     if prev_ckpt_path.exists():
-        #         prev_ckpt_path.unlink()
-        #     prev_ckpt_path = ckpt_path
+            prev_ckpt_path = Path(prev_ckpt_path)
+            if prev_ckpt_path.exists():
+                prev_ckpt_path.unlink()
+            prev_ckpt_path = ckpt_path
 
-        # start_time = time()
+        start_time = time()

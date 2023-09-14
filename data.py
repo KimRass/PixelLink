@@ -125,7 +125,7 @@ class MenuImageDataset(Dataset):
         # self._get_bboxes_ls_and_images()
 
         self.color_jitter = T.RandomApply(
-            [T.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1)],
+            [T.ColorJitter(brightness=0.3, contrast=0.6, saturation=0.6, hue=0.4)],
             p=0.5,
             # p=1,
         )
@@ -278,12 +278,8 @@ class MenuImageDataset(Dataset):
         return len(self.path_pairs)
 
     def __getitem__(self, idx):
-        # bboxes = self.bboxes_ls[idx]
-        # image = self.images[idx]
         txt_path, img_path = self.path_pairs[idx]
         bboxes = get_bboxes(txt_path)
-        # txt_path = "/Users/jongbeomkim/Documents/datasets/menu_images/223_3568_label.txt"
-        # img_path = "/Users/jongbeomkim/Documents/datasets/menu_images/223_3568_image.jpg"
         image = Image.open(img_path).convert("RGB")
         image = resize_with_thresh(image, size_thresh=self.size_thresh)
 
@@ -295,6 +291,7 @@ class MenuImageDataset(Dataset):
             image, bboxes = self._randomly_shift_then_crop(image=image, bboxes=bboxes)
             image = self.color_jitter(image)
         image = _pad_input_image(image)
+        # image.show()
         # print(scale, img_path)
         # draw_bboxes(bboxes=bboxes, image=image)
 
@@ -323,15 +320,6 @@ class MenuImageDataset(Dataset):
 
         image = TF.to_tensor(image)
         image = TF.normalize(image, mean=(0.745, 0.714, 0.681), std=(0.288, 0.300, 0.320))
-
-        # data = {
-        #     "image": image,
-        #     "pixel_gt": pixel_gt,
-        #     "link_gt": link_gt,
-        # }
-        # if self.split == "train":
-        #     data["pixel_weight"] = pixel_weight
-        # return data
         return image, pixel_gt, link_gt, pixel_weight
 
 

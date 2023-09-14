@@ -30,8 +30,8 @@ INIT_LR = 1e-3
 FIN_LR = 1e-2
 
 ### Training
-SEED = 33
-# SEED = random.randint(0, 10000)
+# SEED = 33
+SEED = random.randint(0, 10000)
 random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)

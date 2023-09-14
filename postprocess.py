@@ -83,7 +83,7 @@ def mask_to_bbox(pixel_pred, link_pred, n_neighbors=8, scale=2, thresh=100):
     link_pred = torch.randn(2, 16, 512, 512)
 
     batch_size, _, mask_height, mask_width = pixel_pred.shape
-    pixel_class = nn.Softmax2d()(pixel_pred)
+    # pixel_class = nn.Softmax2d()(pixel_pred)
     pixel_class = pixel_class[:, 1] > 0.7
     link_neighbors = torch.zeros(
         [batch_size, n_neighbors, mask_height, mask_width],
@@ -91,10 +91,10 @@ def mask_to_bbox(pixel_pred, link_pred, n_neighbors=8, scale=2, thresh=100):
         device=pixel_pred.device,
     )
     
-    for i in range(n_neighbors):
-        temp = nn.Softmax2d()(link_pred[:, [2 * i, 2 * i + 1]])
-        link_neighbors[:, i] = temp[:, 1] > 0.7
-        link_neighbors[:, i] = link_neighbors[:, i] & pixel_class
+    # for i in range(n_neighbors):
+    #     temp = nn.Softmax2d()(link_pred[:, [2 * i, 2 * i + 1]])
+    #     link_neighbors[:, i] = temp[:, 1] > 0.7
+    #     link_neighbors[:, i] = link_neighbors[:, i] & pixel_class
 
     all_bboxes = list()
     for i in range(batch_size):

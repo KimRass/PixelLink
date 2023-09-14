@@ -84,6 +84,7 @@ class MenuImageDataset(Dataset):
 
         self.scale_factor = 0.5 if mode == "2s" else 0.25
         self.path_pairs = _get_path_pairs(self.data_dir)
+        self._get_bboxes_ls_and_images()
 
         self.color_jitter = T.RandomApply(
             [T.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1)],
@@ -113,6 +114,17 @@ class MenuImageDataset(Dataset):
         )
         bboxes = bboxes[bboxes["area"] > 0]
         return bboxes
+
+    def _get_bboxes_ls_and_images(self):
+        self.bboxes_ls = list()
+        self.images = list()
+        for txt_path, img_path in self.path_pairs:
+            bboxes = self.get_bboxes(txt_path)
+            image = Image.open(img_path).convert("RGB")
+            image = resize_with_thresh(image, size_thresh=self.size_thresh)
+
+            self.bboxes_ls.append(bboxes)
+            self.images.append(image)
 
     def _get_textbox_masks(self, bboxes, pos_pixel_mask): # Index 0: Non-text, Index 1: Text
         h, w = pos_pixel_mask.shape
@@ -241,9 +253,8 @@ class MenuImageDataset(Dataset):
 
     def __getitem__(self, idx):
         txt_path, img_path = self.path_pairs[idx]
-        bboxes = self.get_bboxes(txt_path)
-        image = Image.open(img_path).convert("RGB")
-        image = resize_with_thresh(image, size_thresh=self.size_thresh)
+        bboxes = self.bboxes_ls[idx]
+        image = self.images[idx]
 
         if self.split == "train":
             image, bboxes = self._randomly_scale(image=image, bboxes=bboxes)

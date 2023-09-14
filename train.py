@@ -117,6 +117,7 @@ if __name__ == "__main__":
     train_dl = DataLoader(
         train_ds,
         batch_size=args.batch_size,
+        shuffle=True,
         num_workers=args.n_workers,
         pin_memory=True,
         drop_last=True,
@@ -124,6 +125,7 @@ if __name__ == "__main__":
     val_dl = DataLoader(
         val_ds,
         batch_size=args.batch_size,
+        shuffle=False,
         num_workers=args.n_workers,
         pin_memory=True,
         drop_last=True,
@@ -140,41 +142,38 @@ if __name__ == "__main__":
         accum_pixel_loss = 0
         accum_link_loss = 0
         for step, batch in enumerate(tqdm(train_dl, total=len(train_dl)), start=1):
-            try:
-                image = batch["image"].to(config.DEVICE)
-                pixel_gt = batch["pixel_gt"].to(config.DEVICE)
-                pixel_weight = batch["pixel_weight"].to(config.DEVICE)
-                link_gt = batch["link_gt"].to(config.DEVICE)
+            image = batch["image"].to(config.DEVICE)
+            pixel_gt = batch["pixel_gt"].to(config.DEVICE)
+            pixel_weight = batch["pixel_weight"].to(config.DEVICE)
+            link_gt = batch["link_gt"].to(config.DEVICE)
 
-                with torch.autocast(
-                    device_type=config.DEVICE.type,
-                    dtype=torch.float16 if config.DEVICE.type == "cuda" else torch.bfloat16,
-                    enabled=True if config.AMP else False,
-                ):
-                    pixel_pred, link_pred = model(image)
-                    # out = mask_to_bbox(pixel_pred=pixel_pred, link_pred=link_pred)
-                    # print(out)
-                    pixel_loss, link_loss = crit(
-                        pixel_pred=pixel_pred,
-                        pixel_gt=pixel_gt,
-                        pixel_weight=pixel_weight,
-                        link_pred=link_pred,
-                        link_gt=link_gt,
-                    )
-                    loss = config.LAMB * pixel_loss + link_loss
-                optim.zero_grad()
-                if config.AMP:
-                    scaler.scale(loss).backward()
-                    scaler.step(optim)
-                    scaler.update()
-                else:
-                    loss.backward()
-                    optim.step()
+            with torch.autocast(
+                device_type=config.DEVICE.type,
+                dtype=torch.float16 if config.DEVICE.type == "cuda" else torch.bfloat16,
+                enabled=True if config.AMP else False,
+            ):
+                pixel_pred, link_pred = model(image)
+                # out = mask_to_bbox(pixel_pred=pixel_pred, link_pred=link_pred)
+                # print(out)
+                pixel_loss, link_loss = crit(
+                    pixel_pred=pixel_pred,
+                    pixel_gt=pixel_gt,
+                    pixel_weight=pixel_weight,
+                    link_pred=link_pred,
+                    link_gt=link_gt,
+                )
+                loss = config.LAMB * pixel_loss + link_loss
+            optim.zero_grad()
+            if config.AMP:
+                scaler.scale(loss).backward()
+                scaler.step(optim)
+                scaler.update()
+            else:
+                loss.backward()
+                optim.step()
 
-                accum_pixel_loss += pixel_loss.item()
-                accum_link_loss += link_loss.item()
-            except Exception as e:
-                print(e)
+            accum_pixel_loss += pixel_loss.item()
+            accum_link_loss += link_loss.item()
 
         ### Validate.
         avg_iou = validate(model=model, val_dl=val_dl)

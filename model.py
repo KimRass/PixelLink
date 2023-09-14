@@ -27,6 +27,9 @@ def conv3x3_bn_relu(in_channels, out_channels, stride=1):
 class VGG16(nn.Module):
     def __init__(self, pretrained=True):
         super().__init__()
+
+        # "Instead of fine-tuning from an ImageNet-pretrained model, the VGG net is randomly
+        # initialized via the xavier method."
         if pretrained:
             weights = VGG16_BN_Weights.IMAGENET1K_V1
         else:
@@ -46,14 +49,14 @@ class VGG16(nn.Module):
             conv3x3_bn_relu(512, 512),
         ) # 'fc6', 'fc7'
 
-    def forward(self, x): # `(b, 3, h, w)`
+    def forward(self, x): # (b, 3, h, w)
         x = self.conv_stage1(x)
 
-        x1 = self.conv_stage2(x) # `(b, 3, h // 2, w // 2)`
-        x2 = self.conv_stage3(x1) # `(b, 3, h // 4, w / 4)`
-        x3 = self.conv_stage4(x2) # `(b, 3, h // 8, w // 8)`
-        x4 = self.conv_stage5(x3) # `(b, 3, h // 16, w // 16)`
-        x5 = self.block(x4) # `(b, 3, h // 16, w // 16)`
+        x1 = self.conv_stage2(x) # (b, 3, h/2, w/2)
+        x2 = self.conv_stage3(x1) # (b, 3, h/4, w / 4)
+        x3 = self.conv_stage4(x2) # (b, 3, h/8, w/8)
+        x4 = self.conv_stage5(x3) # (b, 3, h/16, w/16)
+        x5 = self.block(x4) # (b, 3, h/16, w/16)
         return x1, x2, x3, x4, x5
 
 
@@ -86,29 +89,28 @@ class PixelLink2s(nn.Module):
         x = F.interpolate(x, scale_factor=2, mode="bilinear")
         return x
         
-    def forward(self, x): # `(b, 3, h, w)`
+    def forward(self, x): # (b, 3, h, w)
         x1, x2, x3, x4, x5 = self.backbone(x)
 
         # "The size of 'fc7' is the same as 'conv5_3', and no upsampling is needed when adding scores
         # from these two layers.
-        pixel = self.pixel_conv5(x5) + self.pixel_conv4(x4) # `(b, 2, h // 16, w // 16)`
-        pixel = self._upsample(pixel) # `(b, 2, h // 8, w // 8)`
-        pixel += self.pixel_conv3(x3) # `(b, 2, h // 8, w // 8)`
-        pixel = self._upsample(pixel) # `(b, 2, h // 4, w // 4)`
-        pixel += self.pixel_conv2(x2) # `(b, 2, h // 4, w // 4)`
-        pixel = self._upsample(pixel) # `(b, 2, h // 2, w // 2)`
-        pixel += self.pixel_conv1(x1) # `(b, 2, h // 2, w // 2)`
+        pixel = self.pixel_conv5(x5) + self.pixel_conv4(x4) # (b, 2, h/16, w/16)
+        pixel = self._upsample(pixel) # (b, 2, h/8, w/8)
+        pixel += self.pixel_conv3(x3) # (b, 2, h/8, w/8)
+        pixel = self._upsample(pixel) # (b, 2, h/4, w/4)
+        pixel += self.pixel_conv2(x2) # (b, 2, h/4, w/4)
+        pixel = self._upsample(pixel) # (b, 2, h/2, w/2)
+        pixel += self.pixel_conv1(x1) # (b, 2, h/2, w/2)
         # "Softmax is used in both."
         pixel = F.softmax(pixel, dim=1)
-        # return pixel
 
-        link = self.link_conv5(x5) + self.link_conv4(x4)  # `(b, 2, h // 16, w // 16)`
-        link = self._upsample(link) # `(b, 2, h // 8, w // 8)`
-        link += self.link_conv3(x3) # `(b, 2, h // 8, w // 8)`
-        link = self._upsample(link) # `(b, 2, h // 4, w // 4)`
-        link += self.link_conv2(x2) # `(b, 2, h // 4, w // 4)`
-        link = self._upsample(link) # `(b, 2, h // 2, w // 2)`
-        link += self.link_conv1(x1) # `(b, 2, h // 2, w // 2)`
+        link = self.link_conv5(x5) + self.link_conv4(x4)  # (b, 2, h/16, w/16)
+        link = self._upsample(link) # (b, 2, h/8, w/8)
+        link += self.link_conv3(x3) # (b, 2, h/8, w/8)
+        link = self._upsample(link) # (b, 2, h/4, w/4)
+        link += self.link_conv2(x2) # (b, 2, h/4, w/4)
+        link = self._upsample(link) # (b, 2, h/2, w/2)
+        link += self.link_conv1(x1) # (b, 2, h/2, w/2)
         # for i in range(0, config.N_NEIGHBORS * 2, 2):
         #     link[:, i: i + 2, ...] = F.softmax(link[:, i: i + 2, ...], dim=1)
         # for i in range(0, config.N_NEIGHBORS):
@@ -127,10 +129,7 @@ if __name__ == "__main__":
     pixel_pred, link_pred = model(x)
     pixel_pred.shape
 
-    # pixel_pred.sum(dim=1)
-    # for i in range(0, config.N_NEIGHBORS * 2, 2):
-    #     link_pred[:, i: i + 2, ...].sum(dim=1)
-    # pixel_pred.shape, link_pred.shape
-
-# "Instead of fine-tuning from an ImageNet-pretrained model, the VGG net is randomly initialized
-# via the xavier method."
+    link = torch.arange(32).view(2, 2, 8).float()
+    link[0]
+    link.sum(dim=1)
+    F.softmax(link, dim=1)[0, :, : 4]

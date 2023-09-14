@@ -33,9 +33,9 @@ def validate(model, val_dl):
     model.eval()
     accum_iou = 0
     with torch.no_grad():
-        for batch in val_dl:
-            image = batch["image"].to(config.DEVICE)
-            pixel_gt = batch["pixel_gt"].to(config.DEVICE)
+        for image, pixel_gt, _, _ in val_dl:
+            image = image.to(config.DEVICE)
+            pixel_gt = pixel_gt.to(config.DEVICE)
 
             pixel_pred, _ = model(image)
             iou = get_pixel_iou(pixel_pred, pixel_gt)
@@ -81,7 +81,7 @@ def resume(ckpt_path, model, optim, scaler):
 if __name__ == "__main__":
     args = get_args()
 
-    print(f"""SEED = {config.SEED}""")
+    # print(f"""SEED = {config.SEED}""")
     print(f"""DEVICE = {config.DEVICE}""")
     print(f"""AMP = {config.AMP}""")
 

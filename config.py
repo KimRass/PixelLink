@@ -31,11 +31,11 @@ FIN_LR = 1e-2
 
 ### Training
 # SEED = 33
-SEED = random.randint(0, 10000)
-random.seed(SEED)
-np.random.seed(SEED)
-torch.manual_seed(SEED)
-torch.cuda.manual_seed(SEED)
+# SEED = random.randint(0, 10000)
+# random.seed(SEED)
+# np.random.seed(SEED)
+# torch.manual_seed(SEED)
+# torch.cuda.manual_seed(SEED)
 AMP = True
 # N_WORKERS = 0
 # AMP = False

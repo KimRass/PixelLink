@@ -253,8 +253,12 @@ class MenuImageDataset(Dataset):
         return len(self.path_pairs)
 
     def __getitem__(self, idx):
-        bboxes = self.bboxes_ls[idx]
-        image = self.images[idx]
+        # bboxes = self.bboxes_ls[idx]
+        # image = self.images[idx]
+        txt_path, img_path = self.path_pairs[idx]
+        bboxes = self.get_bboxes(txt_path)
+        image = Image.open(img_path).convert("RGB")
+        image = resize_with_thresh(image, size_thresh=self.size_thresh)
 
         if self.split == "train":
             image, bboxes = self._randomly_scale(image=image, bboxes=bboxes)

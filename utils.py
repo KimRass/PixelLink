@@ -81,6 +81,11 @@ def _to_pil(img, mode="RGB"):
         return img
 
 
+def _to_array(img):
+    img = np.array(img)
+    return img
+
+
 def _apply_jet_colormap(img):
     img_jet = cv2.applyColorMap(src=(255 - img), colormap=cv2.COLORMAP_JET)
     return img_jet
@@ -117,6 +122,62 @@ def resize_with_thresh(image, size_thresh=3000):
         return new_image
     else:
         return image
+
+
+def _get_canvas_same_size_as_image(img, black=False):
+    if black:
+        return np.zeros_like(img).astype("uint8")
+    else:
+        return (np.ones_like(img) * 255).astype("uint8")
+
+
+def draw_bboxes(bboxes, image):
+    canvas = _to_pil(_get_canvas_same_size_as_image(_to_array(image), black=True))
+    draw = ImageDraw.Draw(canvas)
+    dic = dict()
+    for row in bboxes.itertuples():
+        h = row.b - row.t
+        w = row.r - row.l
+        smaller = min(w, h)
+        thickness = max(1, smaller // 22)
+
+        dic[row.Index] = ((0, 255, 0), (0, 100, 0), thickness)
+
+    for row in bboxes.itertuples():
+        _, fill, thickness = dic[row.Index]
+        draw.rectangle(
+            xy=(row.l, row.t, row.r, row.b),
+            outline=None,
+            fill=fill,
+            width=thickness
+        )
+    for row in bboxes.itertuples():
+        outline, _, thickness = dic[row.Index]
+        draw.rectangle(
+            xy=(row.l, row.t, row.r, row.b),
+            outline=outline,
+            fill=None,
+            width=thickness
+        )
+
+    # if index:
+    #     max_len = max(map(len, map(str, bboxes.index)))
+    #     for row in bboxes.itertuples():
+    #         h = row.b - row.t
+    #         w = row.r - row.l
+    #         smaller = min(w, h)
+    #         font_size = max(10, min(40, smaller // 4))
+
+    #         draw.text(
+    #             xy=(row.l, row.t - 4),
+    #             text=str(row.Index).zfill(max_len),
+    #             fill="white",
+    #             stroke_fill="black",
+    #             stroke_width=2,
+    #             font=ImageFont.truetype(font=font_path, size=int(font_size)),
+    #             anchor="ls"
+    #         )
+    Image.blend(_to_pil(canvas), im2=image, alpha=0.5).show()
 
 
 def postprocess_pixel_gt(pixel_gt):

@@ -13,7 +13,8 @@ N_NEIGHBORS = 8
 IMG_SIZE = 1024
 FEAT_MAP_SIZE = IMG_SIZE // 2
 SIZE_THRESH = 3000
-AREA_THRESH = 2500
+MIN_AREA_THRESH = 3500
+MAX_AREA_THRESH = 100_000
 LAMB = 0.2
 
 ### Architecture
@@ -30,6 +31,7 @@ FIN_LR = 1e-2
 
 ### Training
 SEED = 33
+# SEED = random.randint(0, 10000)
 random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)

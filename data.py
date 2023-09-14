@@ -23,7 +23,7 @@ import math
 import filetype
 from tqdm.auto import tqdm
 
-from utils import _pad_input_image, resize_with_thresh
+from utils import _pad_input_image, resize_with_thresh, draw_bboxes
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -76,6 +76,12 @@ def get_bboxes(txt_path):
         return bboxes
 
 
+def _filter_bboxes(bboxes, image):
+    w, h = image.size
+    new_bboxes = bboxes[bboxes["area"] >= 0.001 * (w * h)]
+    return new_bboxes
+
+
 def get_mean_and_std(data_dir):
     path_pairs = _get_path_pairs(data_dir)
     images = _get_images(path_pairs)
@@ -96,12 +102,22 @@ def get_mean_and_std(data_dir):
 
 
 class MenuImageDataset(Dataset):
-    def __init__(self, data_dir, img_size, size_thresh, area_thresh, split="train", mode="2s"):
+    def __init__(
+        self,
+        data_dir,
+        img_size,
+        size_thresh,
+        min_area_thresh,
+        max_area_thresh,
+        split="train",
+        mode="2s",
+    ):
 
         self.data_dir = data_dir
         self.img_size = img_size
         self.size_thresh = size_thresh
-        self.area_thresh = area_thresh
+        self.min_area_thresh = min_area_thresh
+        self.max_area_thresh = max_area_thresh
         self.split = split
 
         self.scale_factor = 0.5 if mode == "2s" else 0.25
@@ -188,12 +204,16 @@ class MenuImageDataset(Dataset):
         확대는 하지 않고 축소만 하는데, 가장 작은 바운딩 박스의 넓이가 최소한 `area_thresh`와 같아지는 정도까지만 축소합니다.
         """
         min_area = bboxes["area"].min()
-        if math.isnan(min_area):
-            minim = 0.25
+        max_area = bboxes["area"].max()
+        if max_area > self.max_area_thresh:
+            max_scale = 1
         else:
-            minim = self.area_thresh / min_area
-        scale = random.uniform(minim, 1)
-
+            max_scale = min(2, self.max_area_thresh / max_area)
+        if min_area < self.min_area_thresh:
+            min_scale = 1
+        else:
+            min_scale = max(0.5, self.min_area_thresh / min_area)
+        scale = random.uniform(min_scale, max_scale)
         w, h = image.size
         size = (round(h * scale), round(w * scale))
         new_image = TF.resize(image, size=size, antialias=True)
@@ -203,7 +223,7 @@ class MenuImageDataset(Dataset):
         new_bboxes["t"] = new_bboxes["t"].apply(lambda x: round(x * scale))
         new_bboxes["r"] = new_bboxes["r"].apply(lambda x: round(x * scale))
         new_bboxes["b"] = new_bboxes["b"].apply(lambda x: round(x * scale))
-        return new_image, new_bboxes
+        return scale, new_image, new_bboxes
 
     def _randomly_shift_then_crop(self, image, bboxes):
         w, h = image.size
@@ -262,19 +282,21 @@ class MenuImageDataset(Dataset):
         # image = self.images[idx]
         txt_path, img_path = self.path_pairs[idx]
         bboxes = get_bboxes(txt_path)
+        # txt_path = "/Users/jongbeomkim/Documents/datasets/menu_images/223_3568_label.txt"
+        # img_path = "/Users/jongbeomkim/Documents/datasets/menu_images/223_3568_image.jpg"
         image = Image.open(img_path).convert("RGB")
         image = resize_with_thresh(image, size_thresh=self.size_thresh)
-        print(txt_path, img_path)
+
+        bboxes = _filter_bboxes(bboxes=bboxes, image=image)
 
         if self.split == "train":
-            image, bboxes = self._randomly_scale(image=image, bboxes=bboxes)
-            print("a", image.size)
+            scale, image, bboxes = self._randomly_scale(image=image, bboxes=bboxes)
+            # draw_bboxes(bboxes=bboxes, image=image)
             image, bboxes = self._randomly_shift_then_crop(image=image, bboxes=bboxes)
-            print("b", image.size)
             image = self.color_jitter(image)
-            print("c", image.size)
         image = _pad_input_image(image)
-        print("A", image.size)
+        # print(scale, img_path)
+        # draw_bboxes(bboxes=bboxes, image=image)
 
         pos_pixel_mask = self._get_pos_pixel_mask(image=image, bboxes=bboxes)
 
@@ -282,7 +304,6 @@ class MenuImageDataset(Dataset):
         pixel_gt = F.interpolate(
             pixel_gt.float().unsqueeze(0), scale_factor=self.scale_factor, mode="nearest"
         )[0].long()
-        print("B")
 
         # if self.split == "train":
         pixel_weight = self._get_pixel_weight_for_pos_pixels(
@@ -291,7 +312,6 @@ class MenuImageDataset(Dataset):
         pixel_weight = F.interpolate(
             pixel_weight.unsqueeze(0), scale_factor=self.scale_factor, mode="nearest",
         )[0]
-        print("C")
 
         link_seg_map = self._get_text_seg_map(image=image, bboxes=bboxes, pos_pixels=pos_pixel_mask)
         link_gt = self._get_pos_links(
@@ -300,7 +320,6 @@ class MenuImageDataset(Dataset):
         link_gt = F.interpolate(
             link_gt.float().unsqueeze(0), scale_factor=self.scale_factor, mode="nearest",
         )[0].long()
-        print("D")
 
         image = TF.to_tensor(image)
         image = TF.normalize(image, mean=(0.745, 0.714, 0.681), std=(0.288, 0.300, 0.320))
@@ -339,8 +358,8 @@ if __name__ == "__main__":
     image = images[159 * 4 + 4]
 
     img_path = "/Users/jongbeomkim/Documents/datasets/menu_images/128_295_image.png"
-    img_path = "/Users/jongbeomkim/Documents/datasets/menu_images/128_303_image.png"
     image = Image.open(img_path).convert("RGB")
+    # img_path = "/Users/jongbeomkim/Documents/datasets/menu_images/128_303_image.png"
     image.size
     image.show()
 

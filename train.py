@@ -108,7 +108,8 @@ if __name__ == "__main__":
         data_dir=args.data_dir,
         img_size=config.IMG_SIZE,
         size_thresh=config.SIZE_THRESH,
-        area_thresh=config.AREA_THRESH,
+        min_area_thresh=config.MIN_AREA_THRESH,
+        max_area_thresh=config.MAX_AREA_THRESH,
         split="train",
     )
     # train_ds_size = round(len(ds) * 0.9)
@@ -118,8 +119,8 @@ if __name__ == "__main__":
         # train_ds,
         ds,
         batch_size=args.batch_size,
-        # shuffle=True,
-        shuffle=False,
+        shuffle=True,
+        # shuffle=False,
         num_workers=args.n_workers,
         pin_memory=True,
         drop_last=True,

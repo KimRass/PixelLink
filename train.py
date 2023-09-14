@@ -149,58 +149,58 @@ if __name__ == "__main__":
             pixel_weight = batch["pixel_weight"].to(config.DEVICE)
             link_gt = batch["link_gt"].to(config.DEVICE)
 
-            with torch.autocast(
-                device_type=config.DEVICE.type,
-                dtype=torch.float16 if config.DEVICE.type == "cuda" else torch.bfloat16,
-                enabled=True if config.AMP else False,
-            ):
-                pixel_pred, link_pred = model(image)
-                # out = mask_to_bbox(pixel_pred=pixel_pred, link_pred=link_pred)
-                # print(out)
-                pixel_loss, link_loss = crit(
-                    pixel_pred=pixel_pred,
-                    pixel_gt=pixel_gt,
-                    pixel_weight=pixel_weight,
-                    link_pred=link_pred,
-                    link_gt=link_gt,
-                )
-                loss = config.LAMB * pixel_loss + link_loss
-            optim.zero_grad()
-            if config.AMP:
-                scaler.scale(loss).backward()
-                scaler.step(optim)
-                scaler.update()
-            else:
-                loss.backward()
-                optim.step()
+        #     with torch.autocast(
+        #         device_type=config.DEVICE.type,
+        #         dtype=torch.float16 if config.DEVICE.type == "cuda" else torch.bfloat16,
+        #         enabled=True if config.AMP else False,
+        #     ):
+        #         pixel_pred, link_pred = model(image)
+        #         # out = mask_to_bbox(pixel_pred=pixel_pred, link_pred=link_pred)
+        #         # print(out)
+        #         pixel_loss, link_loss = crit(
+        #             pixel_pred=pixel_pred,
+        #             pixel_gt=pixel_gt,
+        #             pixel_weight=pixel_weight,
+        #             link_pred=link_pred,
+        #             link_gt=link_gt,
+        #         )
+        #         loss = config.LAMB * pixel_loss + link_loss
+        #     optim.zero_grad()
+        #     if config.AMP:
+        #         scaler.scale(loss).backward()
+        #         scaler.step(optim)
+        #         scaler.update()
+        #     else:
+        #         loss.backward()
+        #         optim.step()
 
-            accum_pixel_loss += pixel_loss.item()
-            accum_link_loss += link_loss.item()
+        #     accum_pixel_loss += pixel_loss.item()
+        #     accum_link_loss += link_loss.item()
 
-        ### Validate.
-        avg_iou = validate(model=model, val_dl=val_dl)
+        # ### Validate.
+        # avg_iou = validate(model=model, val_dl=val_dl)
 
-        print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
-        print(f"""[ Pixel loss: {accum_pixel_loss / len(train_dl):.4f} ]""", end="")
-        print(f"""[ Link loss: {accum_link_loss / len(train_dl):.4f} ]""", end="")
-        print(f"""[ Average pixel IoU: {avg_iou:.3f} ]""")
+        # print(f"""[ {epoch} ][ {step} ][ {get_elapsed_time(start_time)} ]""", end="")
+        # print(f"""[ Pixel loss: {accum_pixel_loss / len(train_dl):.4f} ]""", end="")
+        # print(f"""[ Link loss: {accum_link_loss / len(train_dl):.4f} ]""", end="")
+        # print(f"""[ Average pixel IoU: {avg_iou:.3f} ]""")
 
-        if avg_iou > best_avg_iou:
-            best_avg_iou = avg_iou
-            ckpt_path = config.CKPT_DIR/f"""epoch_{epoch}.pth"""
-            save_checkpoint(
-                epoch=epoch,
-                model=model,
-                optim=optim,
-                scaler=scaler,
-                best_avg_iou=best_avg_iou,
-                ckpt_path=ckpt_path,
-            )
-            print(f"""Saved checkpoint.""")
+        # if avg_iou > best_avg_iou:
+        #     best_avg_iou = avg_iou
+        #     ckpt_path = config.CKPT_DIR/f"""epoch_{epoch}.pth"""
+        #     save_checkpoint(
+        #         epoch=epoch,
+        #         model=model,
+        #         optim=optim,
+        #         scaler=scaler,
+        #         best_avg_iou=best_avg_iou,
+        #         ckpt_path=ckpt_path,
+        #     )
+        #     print(f"""Saved checkpoint.""")
 
-            prev_ckpt_path = Path(prev_ckpt_path)
-            if prev_ckpt_path.exists():
-                prev_ckpt_path.unlink()
-            prev_ckpt_path = ckpt_path
+        #     prev_ckpt_path = Path(prev_ckpt_path)
+        #     if prev_ckpt_path.exists():
+        #         prev_ckpt_path.unlink()
+        #     prev_ckpt_path = ckpt_path
 
-        start_time = time()
+        # start_time = time()

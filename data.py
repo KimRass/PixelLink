@@ -256,6 +256,7 @@ class MenuImageDataset(Dataset):
         # bboxes = self.bboxes_ls[idx]
         # image = self.images[idx]
         txt_path, img_path = self.path_pairs[idx]
+        print(txt_path, img_path)
         bboxes = self.get_bboxes(txt_path)
         image = Image.open(img_path).convert("RGB")
         image = resize_with_thresh(image, size_thresh=self.size_thresh)
@@ -313,3 +314,12 @@ if __name__ == "__main__":
 
     len(images)
     images[100].show()
+
+    # data_dir = "/Users/jongbeomkim/Documents/datasets/menu_images"
+    # path_pairs = _get_path_pairs(data_dir)
+    path_pairs[840][0]
+    # images = _get_images(path_pairs)
+    # 160*4
+    # image = images[844]
+    # image.size
+    # image.show()

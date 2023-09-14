@@ -115,9 +115,11 @@ if __name__ == "__main__":
     val_ds_size = len(ds) - train_ds_size
     train_ds, val_ds = random_split(ds, lengths=(train_ds_size, val_ds_size))
     train_dl = DataLoader(
-        train_ds,
+        # train_ds,
+        ds,
         batch_size=args.batch_size,
-        shuffle=True,
+        # shuffle=True,
+        shuffle=False,
         num_workers=args.n_workers,
         pin_memory=True,
         drop_last=True,

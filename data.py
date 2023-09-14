@@ -33,7 +33,7 @@ torch.set_printoptions(edgeitems=4)
 
 def _get_path_pairs(data_dir):
     path_pairs = list()
-    for txt_path in Path(data_dir).glob("*.txt"):
+    for txt_path in sorted(list(Path(data_dir).glob("*.txt"))):
         for ext in [".jpg", ".png"]:
             img_path = Path(str(txt_path.with_suffix(ext)).replace("label", "image"))
             if img_path.exists() and filetype.is_image(img_path):
@@ -116,7 +116,7 @@ class MenuImageDataset(Dataset):
         return bboxes
 
     def _get_bboxes_ls_and_images(self):
-        print("Loading all images and txt files...")
+        print("Loading all images and txt files in advance...")
         self.bboxes_ls = list()
         self.images = list()
         for txt_path, img_path in tqdm(self.path_pairs):

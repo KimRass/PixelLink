@@ -54,6 +54,28 @@ def get_whs(path_pairs):
     return whs
 
 
+def get_bboxes(txt_path):
+        bboxes = list()
+        with open(txt_path, mode="r") as f:
+            for line in f:
+                line = line.strip().replace("\ufeff", "")
+                splitted = line.split("ᴥ")
+                if len(splitted) in [4, 5]:
+                    l, t, r, b = splitted[: 4]
+                    l = round(float(l.strip()))
+                    t = round(float(t.strip()))
+                    r = round(float(r.strip()))
+                    b = round(float(b.strip()))
+                    bboxes.append((l, t, r, b))
+
+        bboxes = pd.DataFrame(bboxes, columns=("l", "t", "r", "b"))
+        bboxes["area"] = bboxes.apply(
+            lambda x: max(0, (x["r"] - x["l"]) * (x["b"] - x["t"])), axis=1,
+        )
+        bboxes = bboxes[bboxes["area"] > 0]
+        return bboxes
+
+
 def get_mean_and_std(data_dir):
     path_pairs = _get_path_pairs(data_dir)
     images = _get_images(path_pairs)
@@ -94,33 +116,12 @@ class MenuImageDataset(Dataset):
         # image = Image.open("/Users/jongbeomkim/Documents/datasets/menu_images/1_1_image.jpg").convert("RGB")
         # color_jitter(image).show()
 
-    def get_bboxes(self, txt_path):
-        bboxes = list()
-        with open(txt_path, mode="r") as f:
-            for line in f:
-                line = line.strip().replace("\ufeff", "")
-                splitted = line.split("ᴥ")
-                if len(splitted) in [4, 5]:
-                    l, t, r, b = splitted[: 4]
-                    l = round(float(l.strip()))
-                    t = round(float(t.strip()))
-                    r = round(float(r.strip()))
-                    b = round(float(b.strip()))
-                    bboxes.append((l, t, r, b))
-
-        bboxes = pd.DataFrame(bboxes, columns=("l", "t", "r", "b"))
-        bboxes["area"] = bboxes.apply(
-            lambda x: max(0, (x["r"] - x["l"]) * (x["b"] - x["t"])), axis=1,
-        )
-        bboxes = bboxes[bboxes["area"] > 0]
-        return bboxes
-
     def _get_bboxes_ls_and_images(self):
         print("Loading all images and txt files in advance...")
         self.bboxes_ls = list()
         self.images = list()
         for txt_path, img_path in tqdm(self.path_pairs):
-            bboxes = self.get_bboxes(txt_path)
+            bboxes = get_bboxes(txt_path)
             image = Image.open(img_path).convert("RGB")
             image = resize_with_thresh(image, size_thresh=self.size_thresh)
 
@@ -257,7 +258,7 @@ class MenuImageDataset(Dataset):
         # image = self.images[idx]
         txt_path, img_path = self.path_pairs[idx]
         print(txt_path, img_path)
-        bboxes = self.get_bboxes(txt_path)
+        bboxes = get_bboxes(txt_path)
         image = Image.open(img_path).convert("RGB")
         image = resize_with_thresh(image, size_thresh=self.size_thresh)
 
@@ -266,7 +267,7 @@ class MenuImageDataset(Dataset):
             image, bboxes = self._randomly_shift_then_crop(image=image, bboxes=bboxes)
             image = self.color_jitter(image)
         image = _pad_input_image(image)
-        # image.show()
+        print("A")
 
         pos_pixel_mask = self._get_pos_pixel_mask(image=image, bboxes=bboxes)
 
@@ -274,20 +275,25 @@ class MenuImageDataset(Dataset):
         pixel_gt = F.interpolate(
             pixel_gt.float().unsqueeze(0), scale_factor=self.scale_factor, mode="nearest"
         )[0].long()
+        print("B")
 
         if self.split == "train":
             pixel_weight = self._get_pixel_weight_for_pos_pixels(
-                bboxes=bboxes, pos_pixel_mask=pos_pixel_mask
+                bboxes=bboxes, pos_pixel_mask=pos_pixel_mask,
             )
             pixel_weight = F.interpolate(
-                pixel_weight.unsqueeze(0), scale_factor=self.scale_factor, mode="nearest"
+                pixel_weight.unsqueeze(0), scale_factor=self.scale_factor, mode="nearest",
             )[0]
+        print("C")
 
         link_seg_map = self._get_text_seg_map(image=image, bboxes=bboxes, pos_pixels=pos_pixel_mask)
-        link_gt = self._get_pos_links(link_seg_map=link_seg_map, pos_pixel_mask=pos_pixel_mask, stride=5)
+        link_gt = self._get_pos_links(
+            link_seg_map=link_seg_map, pos_pixel_mask=pos_pixel_mask, stride=5,
+        )
         link_gt = F.interpolate(
-            link_gt.float().unsqueeze(0), scale_factor=self.scale_factor, mode="nearest"
+            link_gt.float().unsqueeze(0), scale_factor=self.scale_factor, mode="nearest",
         )[0].long()
+        print("D")
 
         image = TF.to_tensor(image)
         image = TF.normalize(image, mean=(0.745, 0.714, 0.681), std=(0.288, 0.300, 0.320))
@@ -317,9 +323,18 @@ if __name__ == "__main__":
 
     # data_dir = "/Users/jongbeomkim/Documents/datasets/menu_images"
     # path_pairs = _get_path_pairs(data_dir)
-    path_pairs[840][0]
+    path_pairs[841][0]
+    160*4
     # images = _get_images(path_pairs)
     # 160*4
-    # image = images[844]
-    # image.size
-    # image.show()
+    path_pairs[159 * 4 + 4]
+    image = images[159 * 4 + 4]
+
+    img_path = "/Users/jongbeomkim/Documents/datasets/menu_images/128_295_image.png"
+    img_path = "/Users/jongbeomkim/Documents/datasets/menu_images/128_303_image.png"
+    image = Image.open(img_path).convert("RGB")
+    image.size
+    image.show()
+
+    bboxes = get_bboxes("/Users/jongbeomkim/Documents/datasets/menu_images/128_295_label.txt")
+    bboxes

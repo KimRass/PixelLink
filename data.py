@@ -277,13 +277,13 @@ class MenuImageDataset(Dataset):
         )[0].long()
         print("B")
 
-        if self.split == "train":
-            pixel_weight = self._get_pixel_weight_for_pos_pixels(
-                bboxes=bboxes, pos_pixel_mask=pos_pixel_mask,
-            )
-            pixel_weight = F.interpolate(
-                pixel_weight.unsqueeze(0), scale_factor=self.scale_factor, mode="nearest",
-            )[0]
+        # if self.split == "train":
+        pixel_weight = self._get_pixel_weight_for_pos_pixels(
+            bboxes=bboxes, pos_pixel_mask=pos_pixel_mask,
+        )
+        pixel_weight = F.interpolate(
+            pixel_weight.unsqueeze(0), scale_factor=self.scale_factor, mode="nearest",
+        )[0]
         print("C")
 
         link_seg_map = self._get_text_seg_map(image=image, bboxes=bboxes, pos_pixels=pos_pixel_mask)
@@ -298,14 +298,15 @@ class MenuImageDataset(Dataset):
         image = TF.to_tensor(image)
         image = TF.normalize(image, mean=(0.745, 0.714, 0.681), std=(0.288, 0.300, 0.320))
 
-        data = {
-            "image": image,
-            "pixel_gt": pixel_gt,
-            "link_gt": link_gt,
-        }
-        if self.split == "train":
-            data["pixel_weight"] = pixel_weight
-        return data
+        # data = {
+        #     "image": image,
+        #     "pixel_gt": pixel_gt,
+        #     "link_gt": link_gt,
+        # }
+        # if self.split == "train":
+        #     data["pixel_weight"] = pixel_weight
+        # return data
+        return image, pixel_gt, link_gt, pixel_weight
 
 
 if __name__ == "__main__":

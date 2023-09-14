@@ -144,11 +144,16 @@ if __name__ == "__main__":
         accum_pixel_loss = 0
         accum_link_loss = 0
         # for step, batch in enumerate(tqdm(train_dl, total=len(train_dl)), start=1):
-        for step, batch in enumerate(train_dl, start=1):
-            image = batch["image"].to(config.DEVICE)
-            pixel_gt = batch["pixel_gt"].to(config.DEVICE)
-            pixel_weight = batch["pixel_weight"].to(config.DEVICE)
-            link_gt = batch["link_gt"].to(config.DEVICE)
+        # for step, batch in enumerate(train_dl, start=1):
+        for step, image, pixel_gt, link_gt, pixel_weight in enumerate(train_dl, start=1):
+            # image = batch["image"].to(config.DEVICE)
+            # pixel_gt = batch["pixel_gt"].to(config.DEVICE)
+            # pixel_weight = batch["pixel_weight"].to(config.DEVICE)
+            # link_gt = batch["link_gt"].to(config.DEVICE)
+            image = image.to(config.DEVICE)
+            pixel_gt = pixel_gt.to(config.DEVICE)
+            link_gt = link_gt.to(config.DEVICE)
+            pixel_weight = pixel_weight.to(config.DEVICE)
 
         #     with torch.autocast(
         #         device_type=config.DEVICE.type,

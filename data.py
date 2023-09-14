@@ -196,33 +196,37 @@ class MenuImageDataset(Dataset):
 
         w, h = image.size
         size = (round(h * scale), round(w * scale))
-        image = TF.resize(image.copy(), size=size, antialias=True)
+        new_image = TF.resize(image, size=size, antialias=True)
 
-        bboxes["l"] = bboxes["l"].apply(lambda x: round(x * scale))
-        bboxes["t"] = bboxes["t"].apply(lambda x: round(x * scale))
-        bboxes["r"] = bboxes["r"].apply(lambda x: round(x * scale))
-        bboxes["b"] = bboxes["b"].apply(lambda x: round(x * scale))
-        return image, bboxes
+        new_bboxes = bboxes.copy()
+        new_bboxes["l"] = new_bboxes["l"].apply(lambda x: round(x * scale))
+        new_bboxes["t"] = new_bboxes["t"].apply(lambda x: round(x * scale))
+        new_bboxes["r"] = new_bboxes["r"].apply(lambda x: round(x * scale))
+        new_bboxes["b"] = new_bboxes["b"].apply(lambda x: round(x * scale))
+        return new_image, new_bboxes
 
     def _randomly_shift_then_crop(self, image, bboxes):
         w, h = image.size
         padding = (max(0, self.img_size - w), max(0, self.img_size - h))
-        image = TF.pad(image, padding=padding, padding_mode="constant")
-        t, l, h, w = T.RandomCrop.get_params(image, output_size=(self.img_size, self.img_size))
-        image = TF.crop(image, top=t, left=l, height=h, width=w)
+        new_image = TF.pad(image, padding=padding, padding_mode="constant")
+        t, l, h, w = T.RandomCrop.get_params(new_image, output_size=(self.img_size, self.img_size))
+        new_image = TF.crop(new_image, top=t, left=l, height=h, width=w)
 
-        bboxes["l"] += padding[0] - l
-        bboxes["t"] += padding[1] - t
-        bboxes["r"] += padding[0] - l
-        bboxes["b"] += padding[1] - t
-        bboxes[["l", "t", "r", "b"]] = bboxes[["l", "t", "r", "b"]].clip(0, self.img_size)
-        bboxes = bboxes[(bboxes["l"] != bboxes["r"]) & (bboxes["t"] != bboxes["b"])]
-        return image, bboxes
+        new_bboxes = bboxes.copy()
+        new_bboxes["l"] += padding[0] - l
+        new_bboxes["t"] += padding[1] - t
+        new_bboxes["r"] += padding[0] - l
+        new_bboxes["b"] += padding[1] - t
+        new_bboxes[["l", "t", "r", "b"]] = new_bboxes[["l", "t", "r", "b"]].clip(0, self.img_size)
+        new_bboxes = new_bboxes[
+            (new_bboxes["l"] != new_bboxes["r"]) & (new_bboxes["t"] != new_bboxes["b"])
+        ]
+        return new_image, new_bboxes
 
-    def _randomly_adjust_b_and_s(self, image):
-        image = TF.adjust_brightness(image, random.uniform(0.5, 1.5))
-        image = TF.adjust_saturation(image, random.uniform(0.5, 1.5))
-        return image
+    # def _randomly_adjust_b_and_s(self, image):
+    #     new_image = TF.adjust_brightness(image, random.uniform(0.5, 1.5))
+    #     new_image = TF.adjust_saturation(new_image, random.uniform(0.5, 1.5))
+    #     return new_image
 
     def _get_text_seg_map(self, image: Image.Image, bboxes: pd.DataFrame, pos_pixels):
         w, h = image.size

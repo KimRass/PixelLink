@@ -116,9 +116,10 @@ class MenuImageDataset(Dataset):
         return bboxes
 
     def _get_bboxes_ls_and_images(self):
+        print("Loading all images and txt files...")
         self.bboxes_ls = list()
         self.images = list()
-        for txt_path, img_path in self.path_pairs:
+        for txt_path, img_path in tqdm(self.path_pairs):
             bboxes = self.get_bboxes(txt_path)
             image = Image.open(img_path).convert("RGB")
             image = resize_with_thresh(image, size_thresh=self.size_thresh)
@@ -252,7 +253,6 @@ class MenuImageDataset(Dataset):
         return len(self.path_pairs)
 
     def __getitem__(self, idx):
-        txt_path, img_path = self.path_pairs[idx]
         bboxes = self.bboxes_ls[idx]
         image = self.images[idx]
 

@@ -84,7 +84,7 @@ class MenuImageDataset(Dataset):
 
         self.scale_factor = 0.5 if mode == "2s" else 0.25
         self.path_pairs = _get_path_pairs(self.data_dir)
-        self._get_bboxes_ls_and_images()
+        # self._get_bboxes_ls_and_images()
 
         self.color_jitter = T.RandomApply(
             [T.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1)],

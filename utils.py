@@ -14,6 +14,42 @@ from datetime import timedelta
 
 import config
 
+COLORS = (
+    (230, 25, 75),
+    (60, 180, 75),
+    (255, 255, 25),
+    (0, 130, 200),
+    (245, 130, 48),
+    (145, 30, 180),
+    (70, 240, 250),
+    (240, 50, 230),
+    (210, 255, 60),
+    (250, 190, 212),
+    (0, 128, 128),
+    (220, 190, 255),
+    (170, 110, 40),
+    (255, 250, 200),
+    (128, 0, 0),
+    (170, 255, 195),
+    (128, 128, 0),
+    (255, 215, 180),
+    (0, 0, 128),
+    (128, 128, 128),
+)
+
+
+def _to_pil(img):
+    if not isinstance(img, Image.Image):
+        img = Image.fromarray(img)
+    return img
+
+
+def _to_3d(img):
+    if img.ndim == 2:
+        return np.dstack([img, img, img])
+    else:
+        return img
+
 
 def _pad_input_image(image):
     """
@@ -192,17 +228,6 @@ def postprocess_pixel_gt(pixel_gt):
     return copied
 
 
-def postprocess_pixel_pred(pixel_pred):
-    pixel_pred = pixel_pred.detach().cpu().numpy()
-    pixel_pred = pixel_pred[0, 1, ...]
-    h, w = pixel_pred.shape
-    pixel_pred *= 255
-    pixel_pred = pixel_pred.astype("uint8")
-    pixel_pred = cv2.resize(pixel_pred, dsize=(w * 2, h * 2))
-    pixel_pred = _apply_jet_colormap(pixel_pred)
-    return pixel_pred
-
-
 def postprocess_link_pred(link_pred):
     link_pred = link_pred.detach().cpu().numpy()
     link_pred = link_pred[0, 8, ...]
@@ -214,27 +239,36 @@ def postprocess_link_pred(link_pred):
     return link_pred
 
 
-def vis_image(image):
+def _denorm_image(image, mean=(0.745, 0.714, 0.681), std=(0.288, 0.300, 0.320)):
     copied = image.clone()
-    copied *= 0.5
-    copied += 0.5
+    copied *= torch.as_tensor(std)[:, None, None]
+    copied += torch.as_tensor(mean)[:, None, None]
     copied = TF.to_pil_image(copied)
-    copied.show()
+    return copied
 
 
 def vis_pixel_gt(image, pixel_gt, alpha=0.6):
+    pil_image = _denorm_image(image)
     pixel_gt = postprocess_pixel_gt(pixel_gt)
-    pil_image = TF.to_pil_image((image * 0.5) + 0.5)
     pil_pixel_gt = _to_pil(pixel_gt)
-    # pil_pixel_gt.show()
     blended = Image.blend(pil_image, pil_pixel_gt, alpha=alpha)
     blended.show()
 
 
+def postprocess_pixel_pred(pixel_pred):
+    copied = pixel_pred[1, ...].clone()
+    copied = copied.detach().cpu().numpy()
+    h, w = copied.shape
+    copied *= 255
+    copied = copied.astype("uint8")
+    copied = cv2.resize(copied, dsize=(w * 2, h * 2))
+    copied = _apply_jet_colormap(copied)
+    return _to_pil(copied)
+
+
 def vis_pixel_pred(image, pixel_pred, alpha=0.6):
-    pixel_pred = postprocess_pixel_pred(pixel_pred)
-    pil_image = TF.to_pil_image((image * 0.5) + 0.5)
-    pil_pixel_pred = _to_pil(pixel_pred)
+    pil_image = _denorm_image(image)
+    pil_pixel_pred = postprocess_pixel_pred(pixel_pred)
     blended = Image.blend(pil_image, pil_pixel_pred, alpha=alpha)
     blended.show()
 
@@ -280,6 +314,25 @@ def segment_pixel_pred(pixel_pred):
     pixel_pred = (pixel_pred >= 0.5)
     _, seg_map = cv2.connectedComponents(image=pixel_pred.astype("uint8"), connectivity=4)
     return seg_map
+
+
+def draw_bboxes(image, bboxes):
+    # bboxes = all_bboxes[0]
+    pil_image = _denorm_image(image)
+    draw = ImageDraw.Draw(pil_image)
+    for bbox in bboxes:
+        # draw.polygon(xy=[tuple(i) for i in quad.tolist()], outline=(255, 0, 0))
+        draw.rectangle(xy=bbox, outline="red", width=2)
+    pil_image.show()
+
+
+# def draw_quads(image, quads):
+#     quads = all_bboxes[0]
+#     pil_image = _denorm_image(image[0])
+#     draw = ImageDraw.Draw(pil_image)
+#     for quad in quads:
+#         draw.polygon(xy=[tuple(i) for i in quad.tolist()], outline=(255, 0, 0))
+#     pil_image.show()
 
 
 if __name__ == "__main__":

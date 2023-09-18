@@ -1,5 +1,5 @@
-# import sys
-# sys.path.insert(0, "/Users/jongbeomkim/Desktop/workspace/pixellink_from_scratch")
+import sys
+sys.path.insert(0, "/Users/jongbeomkim/Desktop/workspace/pixellink_from_scratch")
 
 import torch
 from pathlib import Path

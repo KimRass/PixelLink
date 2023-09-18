@@ -11,6 +11,7 @@ from pathlib import Path
 from tqdm.auto import tqdm
 from time import time
 from datetime import timedelta
+from einops import rearrange
 
 import config
 
@@ -69,20 +70,36 @@ def _pad_input_image(image):
     return new_image
 
 
-def draw_bboxes(image: Image.Image, bboxes: pd.DataFrame) -> None:
-    canvas = image.copy()
+def vis_gt_bboxes(bboxes, image) -> None:
+    pil_image = _denorm_image(image)
+    canvas = pil_image.copy()
     draw = ImageDraw.Draw(canvas)
+    dic = dict()
+    for row in bboxes.itertuples():
+        h = row.b - row.t
+        w = row.r - row.l
+        smaller = min(w, h)
+        thickness = max(1, smaller // 22)
 
-    for row in bboxes.itertuples(): # Draw bboxes
+        dic[row.Index] = ((0, 255, 0), (0, 100, 0), thickness)
+
+    for row in bboxes.itertuples():
+        _, fill, thickness = dic[row.Index]
         draw.rectangle(
-            xy=(row.x1, row.y1, row.x2, row.y2),
-            outline="rgb(255, 0, 0)",
-            fill=None,
-            width=2,
+            xy=(row.l, row.t, row.r, row.b),
+            outline=None,
+            fill=fill,
+            width=thickness
         )
-        draw.line(xy=(row.x1, row.y1, row.x2, row.y2), fill="rgb(255, 0, 0)", width=1)
-        draw.line(xy=(row.x1, row.y2, row.x2, row.y1), fill="rgb(255, 0, 0)", width=1)
-    return canvas
+    for row in bboxes.itertuples():
+        outline, _, thickness = dic[row.Index]
+        draw.rectangle(
+            xy=(row.l, row.t, row.r, row.b),
+            outline=outline,
+            fill=None,
+            width=thickness
+        )
+    Image.blend(canvas, pil_image, alpha=0.5).show()
 
 
 def pos_pixel_mask_to_pil(pos_pixel_mask):
@@ -167,55 +184,6 @@ def _get_canvas_same_size_as_image(img, black=False):
         return (np.ones_like(img) * 255).astype("uint8")
 
 
-def draw_bboxes(bboxes, image):
-    canvas = _to_pil(_get_canvas_same_size_as_image(_to_array(image), black=True))
-    draw = ImageDraw.Draw(canvas)
-    dic = dict()
-    for row in bboxes.itertuples():
-        h = row.b - row.t
-        w = row.r - row.l
-        smaller = min(w, h)
-        thickness = max(1, smaller // 22)
-
-        dic[row.Index] = ((0, 255, 0), (0, 100, 0), thickness)
-
-    for row in bboxes.itertuples():
-        _, fill, thickness = dic[row.Index]
-        draw.rectangle(
-            xy=(row.l, row.t, row.r, row.b),
-            outline=None,
-            fill=fill,
-            width=thickness
-        )
-    for row in bboxes.itertuples():
-        outline, _, thickness = dic[row.Index]
-        draw.rectangle(
-            xy=(row.l, row.t, row.r, row.b),
-            outline=outline,
-            fill=None,
-            width=thickness
-        )
-
-    # if index:
-    #     max_len = max(map(len, map(str, bboxes.index)))
-    #     for row in bboxes.itertuples():
-    #         h = row.b - row.t
-    #         w = row.r - row.l
-    #         smaller = min(w, h)
-    #         font_size = max(10, min(40, smaller // 4))
-
-    #         draw.text(
-    #             xy=(row.l, row.t - 4),
-    #             text=str(row.Index).zfill(max_len),
-    #             fill="white",
-    #             stroke_fill="black",
-    #             stroke_width=2,
-    #             font=ImageFont.truetype(font=font_path, size=int(font_size)),
-    #             anchor="ls"
-    #         )
-    Image.blend(_to_pil(canvas), im2=image, alpha=0.5).show()
-
-
 def postprocess_pixel_gt(pixel_gt):
     copied = pixel_gt.clone()
     copied = copied.detach().cpu().numpy()
@@ -229,14 +197,16 @@ def postprocess_pixel_gt(pixel_gt):
 
 
 def postprocess_link_pred(link_pred):
-    link_pred = link_pred.detach().cpu().numpy()
-    link_pred = link_pred[0, 8, ...]
-    h, w = link_pred.shape
-    link_pred *= 255
-    link_pred = link_pred.astype("uint8")
-    link_pred = cv2.resize(link_pred, dsize=(w * 2, h * 2))
-    link_pred = _apply_jet_colormap(link_pred)
-    return link_pred
+    # link_pred = link_pred.detach().cpu().numpy()
+    # link_pred = link_pred[0, 8, ...]
+    copied = link_pred[1, ...].clone()
+    copied = copied.detach().cpu().numpy()
+    h, w = copied.shape
+    copied *= 255
+    copied = copied.astype("uint8")
+    copied = cv2.resize(copied, dsize=(w * 2, h * 2))
+    copied = _apply_jet_colormap(copied)
+    return copied
 
 
 def _denorm_image(image, mean=(0.745, 0.714, 0.681), std=(0.288, 0.300, 0.320)):
@@ -274,10 +244,45 @@ def vis_pixel_pred(image, pixel_pred, alpha=0.6):
 
 
 def vis_link_pred(image, link_pred, alpha=0.6):
-    link_pred = postprocess_link_pred(link_pred)
-    pil_image = TF.to_pil_image((image * 0.5) + 0.5)
-    pil_link_pred = _to_pil(link_pred)
-    blended = Image.blend(pil_image, pil_link_pred, alpha=alpha)
+    link_pred = rearrange(link_pred, pattern="(c n) h w -> n c h w", c=2, n=8)
+    _, _, h, w = link_pred.shape
+    canvas = np.zeros(shape=(h * 6, w * 6, 3), dtype="uint8")
+    for idx in range(config.N_NEIGHBORS):
+        subset = postprocess_pixel_pred(link_pred[idx])
+        if idx >= 4:
+            idx += 1
+        col = idx % 3
+        row = idx // 3
+        canvas[row * 2 * h: (row + 1) * 2 * h, col * 2 * w: (col + 1) * 2 * w, :] = subset
+    pil_image = _denorm_image(image.repeat(1, 3, 3))
+    blended = Image.blend(pil_image, _to_pil(canvas), alpha=alpha)
+    blended.show()
+
+
+def postprocess_pixel_gt(pixel_gt):
+    copied = pixel_gt.clone()
+    copied = copied.detach().cpu().numpy()
+    h, w = copied.shape
+    copied *= 255
+    copied = copied.astype("uint8")
+    copied = cv2.resize(copied, dsize=(w * 2, h * 2))
+    copied = _apply_jet_colormap(copied)
+    return _to_pil(copied)
+
+
+def vis_link_gt(image, link_gt, alpha=0.6):
+    _, h, w = link_gt.shape
+    canvas = np.zeros(shape=(h * 6, w * 6, 3), dtype="uint8")
+    for idx in range(config.N_NEIGHBORS):
+        subset = postprocess_pixel_gt(link_gt[idx])
+        if idx >= 4:
+            idx += 1
+        col = idx % 3
+        row = idx // 3
+        # canvas[row * 2 * h: (row + 1) * 2 * h, col * 2 * w: (col + 1) * 2 * w, :].shape, subset.shape
+        canvas[row * 2 * h: (row + 1) * 2 * h, col * 2 * w: (col + 1) * 2 * w, :] = subset
+    pil_image = _denorm_image(image.repeat(1, 3, 3))
+    blended = Image.blend(pil_image, _to_pil(canvas), alpha=alpha)
     blended.show()
 
 
@@ -316,8 +321,9 @@ def segment_pixel_pred(pixel_pred):
     return seg_map
 
 
-def draw_bboxes(image, bboxes):
+def draw_pred_bboxes(image, bboxes):
     # bboxes = all_bboxes[0]
+    # pil_image = _denorm_image(image[0])
     pil_image = _denorm_image(image)
     draw = ImageDraw.Draw(pil_image)
     for bbox in bboxes:

@@ -28,7 +28,7 @@ from utils import _pad_input_image, resize_with_thresh, draw_bboxes
 Image.MAX_IMAGE_PIXELS = None
 
 # np.set_printoptions(edgeitems=20, linewidth=220, suppress=False)
-torch.set_printoptions(edgeitems=4)
+# torch.set_printoptions(edgeitems=4)
 
 
 def _get_path_pairs(data_dir):
@@ -267,6 +267,16 @@ class MenuImageDataset(Dataset):
             (stride, 0), # "Up"
             (-stride, 0), # "Down"
         ]:
+        # for shift in [
+        #     (stride, stride), # "Left-up"
+        #     (stride, 0), # "Up"
+        #     (0, stride), # "Left"
+        #     (stride, -stride), # "Right-up"
+        #     (0, -stride), # "Right"
+        #     (-stride, -stride), # "Right-down"
+        #     (-stride, 0), # "Down"
+        #     (-stride, stride), # "Left-down"
+        # ]:
             shifted = torch.roll(link_seg_map, shifts=shift, dims=(0, 1))
             shifted = (link_seg_map == shifted) * pos_pixel_mask
 
@@ -320,7 +330,10 @@ class MenuImageDataset(Dataset):
 
         image = TF.to_tensor(image)
         image = TF.normalize(image, mean=(0.745, 0.714, 0.681), std=(0.288, 0.300, 0.320))
-        return image, pixel_gt, link_gt, pixel_weight
+        if self.split == "train":
+            return image, pixel_gt, link_gt, pixel_weight
+        elif self.split == "val":
+            return image, pixel_gt, link_gt, pixel_weight, bboxes
 
 
 if __name__ == "__main__":

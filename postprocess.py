@@ -2,7 +2,7 @@ import torch
 import cv2
 import numpy as np
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.nn._get_segtional as F
 from PIL import ImageDraw
 
 import config
@@ -19,14 +19,21 @@ def get_neighbors(h_idx, w_idx):
     neighbors.append((h_idx - 1, w_idx + 1)) # "Right-up"
     neighbors.append((h_idx + 1, w_idx)) # "Up"
     neighbors.append((h_idx - 1, w_idx)) # "Down"
+    # neighbors.append((h_idx - 1, w_idx - 1)) # "Left-up"
+    # neighbors.append((h_idx + 1, w_idx)) # "Up"
+    # neighbors.append((h_idx, w_idx - 1)) # "Left"
+    # neighbors.append((h_idx - 1, w_idx + 1)) # "Right-up"
+    # neighbors.append((h_idx, w_idx + 1)) # "Right"
+    # neighbors.append((h_idx + 1, w_idx + 1)) # "Right-down"
+    # neighbors.append((h_idx - 1, w_idx)) # "Down"
+    # neighbors.append((h_idx + 1, w_idx - 1)) # "Left-down"
     return neighbors
 
 
 def _find(x, group_mask):
-    root = x
-    while group_mask.get(root) != -1:
-        root = group_mask.get(root)
-    return root
+    while group_mask.get(x) != -1:
+        x = group_mask.get(x)
+    return x
 
 
 def _union(x, y, group_mask):
@@ -37,31 +44,29 @@ def _union(x, y, group_mask):
     return
 
 
-def func(pixel_cls, link_cls):
-    # pixel_cls = pixel_pred_temp[i]
-    # link_cls = link_neighbors[i]
+def _get_seg(pixel_cls, link_cls):
+    # pixel_cls = pixel_pred_temp[0]
+    # link_cls = link_neighbors[0]
     pixel_cls = pixel_cls.detach().cpu().numpy()
     link_cls = link_cls.detach().cpu().numpy()
 
     pixel_points = list(zip(*np.where(pixel_cls)))
-    h, w = pixel_cls.shape
     group_mask = dict.fromkeys(pixel_points, -1)
+    # len(pixel_points)
 
-    for point in pixel_points:
-        h_idx, w_idx = point
+    h, w = pixel_cls.shape
+    for h_idx, w_idx in pixel_points:
         neighbors = get_neighbors(h_idx, w_idx)
-        for i, neighbor in enumerate(neighbors):
-            nh_idx, nw_idx = neighbor
-            if nh_idx < 0 or nw_idx < 0 or nh_idx >= h or nw_idx >= w:
+        for i, (nh_idx, nw_idx) in enumerate(neighbors):
+            if (nh_idx < 0) or (nw_idx < 0) or (nh_idx >= h) or (nw_idx >= w):
                 continue
-            if pixel_cls[nh_idx, nw_idx] == 1 and link_cls[i, h_idx, w_idx] == 1:
-                _union(x=point, y=neighbor, group_mask=group_mask)
+            if (pixel_cls[nh_idx, nw_idx] == 1) and (link_cls[i, h_idx, w_idx] == 1):
+                _union(x=(h_idx, w_idx), y=(nh_idx, nw_idx), group_mask=group_mask)
 
     out = np.zeros(pixel_cls.shape, dtype="int32")
     root_map = dict()
-    for point in pixel_points:
-        h_idx, w_idx = point
-        root = _find(point, group_mask=group_mask)
+    for h_idx, w_idx in pixel_points:
+        root = _find((h_idx, w_idx), group_mask=group_mask)
         if root not in root_map:
             root_map[root] = len(root_map) + 1
         out[h_idx, w_idx] = root_map[root]
@@ -94,6 +99,8 @@ def mask_to_bbox(
     pixel_pred: batch_size * 2 * H * W
     link_pred: batch_size * 16 * H * W
     """
+    # mode="2s"
+    # area_thresh=100
     batch_size, _, mask_height, mask_width = pixel_pred.shape
 
     pixel_pred_temp = pixel_pred[:, 1] > pixel_thresh
@@ -109,13 +116,13 @@ def mask_to_bbox(
 
     all_bboxes = list()
     for i in range(batch_size):
-        out_mask = func(pixel_pred_temp[i], link_neighbors[i])
-        # _to_pil(_repaint_segmentation_map(out_mask)).show()
-        n_bboxes = np.max(out_mask)
+        seg = _get_seg(pixel_pred_temp[i], link_neighbors[i])
+        _to_pil(_repaint_segmentation_map(seg)).show()
+        n_bboxes = np.max(seg)
 
         bboxes = list()
         for i in range(1, n_bboxes + 1):
-            box_mask = (out_mask == i).astype("uint8")
+            box_mask = (seg == i).astype("uint8")
             if box_mask.sum() < area_thresh:
                 continue
 
@@ -137,5 +144,5 @@ def mask_to_bbox(
 
 
 if __name__ == "__main__":
-    out = mask_to_bbox(pixel_pred, link_pred, config.N_NEIGHBORS=8, scale=2)
+    out = mask_to_bbox(pixel_pred, link_pred, 8, 2)
     out

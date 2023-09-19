@@ -109,6 +109,7 @@ class MenuImageDataset(Dataset):
         size_thresh,
         min_area_thresh,
         max_area_thresh,
+        stride=1,
         split="train",
         mode="2s",
     ):
@@ -119,6 +120,7 @@ class MenuImageDataset(Dataset):
         self.min_area_thresh = min_area_thresh
         self.max_area_thresh = max_area_thresh
         self.split = split
+        self.stride = stride
 
         self.scale_factor = 0.5 if mode == "2s" else 0.25
         self.path_pairs = _get_path_pairs(self.data_dir)
@@ -255,17 +257,17 @@ class MenuImageDataset(Dataset):
             canvas[row.t: row.b, row.l: row.r] = idx
         return canvas * pos_pixels
 
-    def _get_pos_links(self, link_seg_map, pos_pixel_mask, stride=5):
+    def _get_pos_links(self, link_seg_map, pos_pixel_mask, stride=1):
         ls = list()
         for shift in [
             (0, stride), # "Left"
-            (-stride, stride), # "Left-down"
-            (stride, stride), # "Left-up"
+            (-stride, stride), # "Left-up"
+            (stride, stride), # "Left-down"
             (0, -stride), # "Right"
-            (-stride, -stride), # "Right-down"
-            (stride, -stride), # "Right-up"
-            (stride, 0), # "Up"
-            (-stride, 0), # "Down"
+            (-stride, -stride), # "Right-up"
+            (stride, -stride), # "Right-down"
+            (stride, 0), # "Down"
+            (-stride, 0), # "Up"
         ]:
         # for shift in [
         #     (stride, stride), # "Left-up"
@@ -278,9 +280,11 @@ class MenuImageDataset(Dataset):
         #     (-stride, stride), # "Left-down"
         # ]:
             shifted = torch.roll(link_seg_map, shifts=shift, dims=(0, 1))
-            shifted = (link_seg_map == shifted) * pos_pixel_mask
+            # _to_pil(_repaint_segmentation_map(shifted)).show()
+            is_same = (link_seg_map == shifted) * pos_pixel_mask
+            # vis_pos_pixel_mask(is_same)
 
-            ls.append(shifted)
+            ls.append(is_same)
         stacked = torch.stack(ls)
         return stacked
 
@@ -321,11 +325,14 @@ class MenuImageDataset(Dataset):
         )[0]
 
         link_seg_map = self._get_text_seg_map(image=image, bboxes=bboxes, pos_pixels=pos_pixel_mask)
+        # _to_pil(_repaint_segmentation_map(link_seg_map)).show()
+
         link_gt = self._get_pos_links(
-            link_seg_map=link_seg_map, pos_pixel_mask=pos_pixel_mask, stride=5,
+            link_seg_map=link_seg_map, pos_pixel_mask=pos_pixel_mask, stride=self.stride,
         )
         link_gt = F.interpolate(
             link_gt.float().unsqueeze(0), scale_factor=self.scale_factor, mode="nearest",
+            # link_gt.float().unsqueeze(0), scale_factor=1, mode="nearest",
         )[0].long()
 
         image = TF.to_tensor(image)
@@ -333,36 +340,4 @@ class MenuImageDataset(Dataset):
         if self.split == "train":
             return image, pixel_gt, link_gt, pixel_weight
         elif self.split == "val":
-            return image, pixel_gt, link_gt, pixel_weight, bboxes
-
-
-if __name__ == "__main__":
-    data_dir = "/Users/jongbeomkim/Documents/datasets/menu_images"
-    path_pairs = _get_path_pairs(data_dir)
-    images = _get_images(path_pairs)
-    17403188 ** 0.5
-    61151116 ** 0.5
-    50000000 ** 0.5
-    sorted([(w * h, i) for i, (w, h) in enumerate(whs)])
-    image = images[1516]
-
-    len(images)
-    images[100].show()
-
-    # data_dir = "/Users/jongbeomkim/Documents/datasets/menu_images"
-    # path_pairs = _get_path_pairs(data_dir)
-    path_pairs[841][0]
-    160*4
-    # images = _get_images(path_pairs)
-    # 160*4
-    path_pairs[159 * 4 + 4]
-    image = images[159 * 4 + 4]
-
-    img_path = "/Users/jongbeomkim/Documents/datasets/menu_images/128_295_image.png"
-    image = Image.open(img_path).convert("RGB")
-    # img_path = "/Users/jongbeomkim/Documents/datasets/menu_images/128_303_image.png"
-    image.size
-    image.show()
-
-    bboxes = get_bboxes("/Users/jongbeomkim/Documents/datasets/menu_images/128_295_label.txt")
-    bboxes
+            return image, pixel_gt, link_gt, pixel_weight, bboxes, pos_pixel_mask

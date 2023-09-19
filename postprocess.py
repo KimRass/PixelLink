@@ -2,71 +2,93 @@ import torch
 import cv2
 import numpy as np
 import torch.nn as nn
-import torch.nn._get_segtional as F
+import torch.nn.functional as F
 from PIL import ImageDraw
 
 import config
-from utils import _get_canvas_same_size_as_image, _to_pil, _to_3d
+from utils import _get_canvas_same_size_as_image, _to_pil, _to_3d, _repaint_segmentation_map
 
 
-def get_neighbors(h_idx, w_idx):
-    neighbors = list()
-    neighbors.append((h_idx, w_idx - 1)) # "Left"
-    neighbors.append((h_idx + 1, w_idx - 1)) # "Left-down"
-    neighbors.append((h_idx - 1, w_idx - 1)) # "Left-up"
-    neighbors.append((h_idx, w_idx + 1)) # "Right"
-    neighbors.append((h_idx + 1, w_idx + 1)) # "Right-down"
-    neighbors.append((h_idx - 1, w_idx + 1)) # "Right-up"
-    neighbors.append((h_idx + 1, w_idx)) # "Up"
-    neighbors.append((h_idx - 1, w_idx)) # "Down"
-    # neighbors.append((h_idx - 1, w_idx - 1)) # "Left-up"
-    # neighbors.append((h_idx + 1, w_idx)) # "Up"
-    # neighbors.append((h_idx, w_idx - 1)) # "Left"
-    # neighbors.append((h_idx - 1, w_idx + 1)) # "Right-up"
-    # neighbors.append((h_idx, w_idx + 1)) # "Right"
-    # neighbors.append((h_idx + 1, w_idx + 1)) # "Right-down"
-    # neighbors.append((h_idx - 1, w_idx)) # "Down"
-    # neighbors.append((h_idx + 1, w_idx - 1)) # "Left-down"
-    return neighbors
+def get_neighbors(center):
+    return (
+        (center[0], center[1] - 1), # "Left"
+        (center[0] - 1, center[1] - 1), # "Left-up"
+        (center[0] + 1, center[1] - 1), # "Left-down"
+        (center[0], center[1] + 1), # "Right"
+        (center[0] - 1, center[1] + 1), # "Right-up"
+        (center[0] + 1, center[1] + 1), # "Right-down"
+        (center[0] + 1, center[1]), # "Down"
+        (center[0] - 1, center[1]), # "Up"
+        # (center[0] - 1, center[1] - 1), # "Left-up"
+        # (center[0] + 1, center[1]), # "Up"
+        # (center[0], center[1] - 1), # "Left"
+        # (center[0] - 1, center[1] + 1), # "Right-up"
+        # (center[0], center[1] + 1), # "Right"
+        # (center[0] + 1, center[1] + 1), # "Right-down"
+        # (center[0] - 1, center[1]), # "Down"
+        # (center[0] + 1, center[1] - 1), # "Left-down"
+    )
 
 
-def _find(x, group_mask):
-    while group_mask.get(x) != -1:
-        x = group_mask.get(x)
-    return x
+def _find(x, parent):
+    # while parent.get(x) != -1:
+    #     x = parent.get(x)
+    # return x
+    if parent[x] == -1:
+        return x
+    else:
+        parent[x] = _find(parent[x], parent=parent)
+        return parent[x]
 
 
-def _union(x, y, group_mask):
-    roota = _find(x, group_mask=group_mask)
-    rootb = _find(y, group_mask=group_mask)
-    if roota != rootb:
-        group_mask[rootb] = roota
-    return
+
+def _union(x, y, parent):
+    x_rep = _find(x, parent=parent)
+    y_rep = _find(y, parent=parent)
+    if x_rep != y_rep:
+        parent[y_rep] = x_rep
+    # x_rep = _find(x, parent=parent)
+    # y_rep = _find(y, parent=parent)
+    # if x_rep != y_rep:
+    #     if x_rep[0] < y_rep[0]:
+    #         parent[x_rep] = y_rep
+    #     elif x_rep[0] > y_rep[0]:
+    #         parent[y_rep] = x_rep
+    #     else:
+    #         if x_rep[1] < y_rep[1]:
+    #             parent[x_rep] = y_rep
+    #         elif x_rep[1] < y_rep[1]:
+    #             parent[y_rep] = x_rep
 
 
 def _get_seg(pixel_cls, link_cls):
-    # pixel_cls = pixel_pred_temp[0]
-    # link_cls = link_neighbors[0]
+    pixel_cls = pixel_pred_temp[0]
+    link_cls = link_neighbors[0]
     pixel_cls = pixel_cls.detach().cpu().numpy()
     link_cls = link_cls.detach().cpu().numpy()
 
     pixel_points = list(zip(*np.where(pixel_cls)))
-    group_mask = dict.fromkeys(pixel_points, -1)
-    # len(pixel_points)
+    parent = dict.fromkeys(pixel_points, -1)
 
     h, w = pixel_cls.shape
-    for h_idx, w_idx in pixel_points:
-        neighbors = get_neighbors(h_idx, w_idx)
-        for i, (nh_idx, nw_idx) in enumerate(neighbors):
-            if (nh_idx < 0) or (nw_idx < 0) or (nh_idx >= h) or (nw_idx >= w):
+    for center in pixel_points:
+        neighbors = get_neighbors(center)
+        if center != (26, 31):
+            continue
+        for dir_idx, neighbor in enumerate(neighbors):
+            print(dir_idx, neighbor, link_cls[dir_idx, center[0], center[1]])
+            if (neighbor[0] < 0) or (neighbor[0] >= h) or (neighbor[1] < 0) or (neighbor[1] >= w):
                 continue
-            if (pixel_cls[nh_idx, nw_idx] == 1) and (link_cls[i, h_idx, w_idx] == 1):
-                _union(x=(h_idx, w_idx), y=(nh_idx, nw_idx), group_mask=group_mask)
+            if (pixel_cls[neighbor[0], neighbor[1]] == 1) and (link_cls[dir_idx, center[0], center[1]] == 1):
+                _union(x=center, y=neighbor, parent=parent)
+    # set(parent.values())
+    # set([i[0] for i in parent.keys()]), set([i[1] for i in parent.keys()])
+    parent[(26, 31)]
 
     out = np.zeros(pixel_cls.shape, dtype="int32")
     root_map = dict()
     for h_idx, w_idx in pixel_points:
-        root = _find((h_idx, w_idx), group_mask=group_mask)
+        root = _find((h_idx, w_idx), parent=parent)
         if root not in root_map:
             root_map[root] = len(root_map) + 1
         out[h_idx, w_idx] = root_map[root]
@@ -96,11 +118,17 @@ def mask_to_bbox(
     pixel_pred, link_pred, mode="2s", pixel_thresh=0.5, link_thresh=0.5, area_thresh=100,
 ):
     """
-    pixel_pred: batch_size * 2 * H * W
-    link_pred: batch_size * 16 * H * W
+    pixel_pred:
+        batch_size * 2 * H * W
+        값이 작을수록 박스는 커짐
+    link_pred:
+        batch_size * 16 * H * W
+        # 값이 작을수록 박스는 커짐
     """
     # mode="2s"
     # area_thresh=100
+    # pixel_thresh=0.6
+    # link_thresh=0.5
     batch_size, _, mask_height, mask_width = pixel_pred.shape
 
     pixel_pred_temp = pixel_pred[:, 1] > pixel_thresh
@@ -115,14 +143,14 @@ def mask_to_bbox(
         link_neighbors[:, i] = link_pred_temp[:, i] & pixel_pred_temp
 
     all_bboxes = list()
-    for i in range(batch_size):
-        seg = _get_seg(pixel_pred_temp[i], link_neighbors[i])
-        _to_pil(_repaint_segmentation_map(seg)).show()
+    for batch in range(batch_size):
+        seg = _get_seg(pixel_pred_temp[batch], link_neighbors[batch])
+        # _to_pil(_repaint_segmentation_map(seg)).show()
         n_bboxes = np.max(seg)
 
         bboxes = list()
-        for i in range(1, n_bboxes + 1):
-            box_mask = (seg == i).astype("uint8")
+        for idx in range(1, n_bboxes + 1):
+            box_mask = (seg == idx).astype("uint8")
             if box_mask.sum() < area_thresh:
                 continue
 
@@ -141,8 +169,3 @@ def mask_to_bbox(
             bboxes.append(rect)
         all_bboxes.append(bboxes)
     return all_bboxes
-
-
-if __name__ == "__main__":
-    out = mask_to_bbox(pixel_pred, link_pred, 8, 2)
-    out

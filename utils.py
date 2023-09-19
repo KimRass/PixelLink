@@ -91,14 +91,14 @@ def vis_gt_bboxes(bboxes, image) -> None:
             fill=fill,
             width=thickness
         )
-    for row in bboxes.itertuples():
-        outline, _, thickness = dic[row.Index]
-        draw.rectangle(
-            xy=(row.l, row.t, row.r, row.b),
-            outline=outline,
-            fill=None,
-            width=thickness
-        )
+    # for row in bboxes.itertuples():
+    #     outline, _, thickness = dic[row.Index]
+    #     draw.rectangle(
+    #         xy=(row.l, row.t, row.r, row.b),
+    #         outline=outline,
+    #         fill=None,
+    #         width=thickness
+    #     )
     Image.blend(canvas, pil_image, alpha=0.5).show()
 
 
@@ -204,7 +204,7 @@ def postprocess_link_pred(link_pred):
     h, w = copied.shape
     copied *= 255
     copied = copied.astype("uint8")
-    copied = cv2.resize(copied, dsize=(w * 2, h * 2))
+    copied = cv2.resize(copied, dsize=(w * 2, h * 2), interpolation=cv2.INTER_NEAREST)
     copied = _apply_jet_colormap(copied)
     return copied
 
@@ -231,7 +231,7 @@ def postprocess_pixel_pred(pixel_pred):
     h, w = copied.shape
     copied *= 255
     copied = copied.astype("uint8")
-    copied = cv2.resize(copied, dsize=(w * 2, h * 2))
+    copied = cv2.resize(copied, dsize=(w * 2, h * 2), interpolation=cv2.INTER_NEAREST)
     copied = _apply_jet_colormap(copied)
     return _to_pil(copied)
 
@@ -265,12 +265,12 @@ def postprocess_pixel_gt(pixel_gt):
     h, w = copied.shape
     copied *= 255
     copied = copied.astype("uint8")
-    copied = cv2.resize(copied, dsize=(w * 2, h * 2))
+    copied = cv2.resize(copied, dsize=(w * 2, h * 2), interpolation=cv2.INTER_NEAREST)
     copied = _apply_jet_colormap(copied)
     return _to_pil(copied)
 
 
-def vis_link_gt(image, link_gt, alpha=0.6):
+def vis_link_gt(image, link_gt, alpha=0.7):
     _, h, w = link_gt.shape
     canvas = np.zeros(shape=(h * 6, w * 6, 3), dtype="uint8")
     for idx in range(config.N_NEIGHBORS):
@@ -279,8 +279,8 @@ def vis_link_gt(image, link_gt, alpha=0.6):
             idx += 1
         col = idx % 3
         row = idx // 3
-        # canvas[row * 2 * h: (row + 1) * 2 * h, col * 2 * w: (col + 1) * 2 * w, :].shape, subset.shape
         canvas[row * 2 * h: (row + 1) * 2 * h, col * 2 * w: (col + 1) * 2 * w, :] = subset
+    # _to_pil(canvas).show()
     pil_image = _denorm_image(image.repeat(1, 3, 3))
     blended = Image.blend(pil_image, _to_pil(canvas), alpha=alpha)
     blended.show()
@@ -322,23 +322,15 @@ def segment_pixel_pred(pixel_pred):
 
 
 def draw_pred_bboxes(image, bboxes):
-    # bboxes = all_bboxes[0]
-    # pil_image = _denorm_image(image[0])
     pil_image = _denorm_image(image)
     draw = ImageDraw.Draw(pil_image)
     for bbox in bboxes:
-        # draw.polygon(xy=[tuple(i) for i in quad.tolist()], outline=(255, 0, 0))
-        draw.rectangle(xy=bbox, outline="red", width=2)
+        draw.rectangle(xy=bbox, outline="red", width=1)
     pil_image.show()
 
 
-# def draw_quads(image, quads):
-#     quads = all_bboxes[0]
-#     pil_image = _denorm_image(image[0])
-#     draw = ImageDraw.Draw(pil_image)
-#     for quad in quads:
-#         draw.polygon(xy=[tuple(i) for i in quad.tolist()], outline=(255, 0, 0))
-#     pil_image.show()
+def vis_pos_pixel_mask(pos_pixel_mask):
+    _to_pil(_to_3d((pos_pixel_mask.numpy() * 255).astype("uint8"))).show()
 
 
 if __name__ == "__main__":

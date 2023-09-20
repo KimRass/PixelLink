@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import torchvision.transforms.functional as TF
 from einops import rearrange
+from torchvision.ops import box_iou
 
 import config
 from model import PixelLink2s
@@ -37,14 +38,21 @@ if __name__ == "__main__":
         stride=config.STRIDE,
     )
     for idx in range(len(ds)):
-        image, pixel_gt, link_gt, pixel_weight = ds[idx]
+        image, pixel_gt, link_gt, pixel_weight, gt_bboxes = ds[idx]
+
         pixel_pred, link_pred = model(image.unsqueeze(0))
-        all_bboxes = mask_to_bbox(
-            pixel_pred=pixel_pred,
-            link_pred=link_pred,
+        # pixel_pred = pixel_pred[0]
+        # link_pred = link_pred[0]
+        pred_bboxes = mask_to_bbox(
+            pixel_pred=pixel_pred[0],
+            link_pred=link_pred[0],
             pixel_thresh=0.6,
             link_thresh=0.5,
-            # pixel_thresh=0,
-            # link_thresh=0,
         )
-        draw_pred_bboxes(image, all_bboxes[0])
+        pred_bboxes
+        # draw_pred_bboxes(image, all_bboxes[0])
+
+        gt_bboxes = torch.tensor(gt_bboxes[["l", "t", "r", "b"]].values)
+        gt_bboxes
+        pred_bboxes = torch.tensor(pred_bboxes[["l", "t", "r", "b"]].values)
+        box_iou(pred_bboxes, gt_bboxes)[0]

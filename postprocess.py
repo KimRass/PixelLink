@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from PIL import ImageDraw
+import pandas as pd
 
 import config
 from utils import _get_canvas_same_size_as_image, _to_pil, _to_3d, _repaint_segmentation_map
@@ -20,12 +20,12 @@ def get_neighbors(center):
         (center[0] + 1, center[1]), # "Down"
         (center[0] - 1, center[1]), # "Up"
         # (center[0] - 1, center[1] - 1), # "Left-up"
-        # (center[0] + 1, center[1]), # "Up"
+        # (center[0] + 1, center[1]), # "Down"
         # (center[0], center[1] - 1), # "Left"
         # (center[0] - 1, center[1] + 1), # "Right-up"
         # (center[0], center[1] + 1), # "Right"
         # (center[0] + 1, center[1] + 1), # "Right-down"
-        # (center[0] - 1, center[1]), # "Down"
+        # (center[0] - 1, center[1]), # "Up"
         # (center[0] + 1, center[1] - 1), # "Left-down"
     )
 
@@ -39,7 +39,6 @@ def _find(x, parent):
     else:
         parent[x] = _find(parent[x], parent=parent)
         return parent[x]
-
 
 
 def _union(x, y, parent):
@@ -61,11 +60,11 @@ def _union(x, y, parent):
     #             parent[y_rep] = x_rep
 
 
-def _get_seg(pixel_cls, link_cls):
-    pixel_cls = pixel_pred_temp[0]
-    link_cls = link_neighbors[0]
+def _get_seg(pixel_cls, link_neighbors):
+    # pixel_cls = pixel_pred[0]
+    # link_neighbors = link_neighbors[0]
     pixel_cls = pixel_cls.detach().cpu().numpy()
-    link_cls = link_cls.detach().cpu().numpy()
+    link_neighbors = link_neighbors.detach().cpu().numpy()
 
     pixel_points = list(zip(*np.where(pixel_cls)))
     parent = dict.fromkeys(pixel_points, -1)
@@ -73,17 +72,18 @@ def _get_seg(pixel_cls, link_cls):
     h, w = pixel_cls.shape
     for center in pixel_points:
         neighbors = get_neighbors(center)
-        if center != (26, 31):
-            continue
+        # if center != (26, 31):
+        #     continue
         for dir_idx, neighbor in enumerate(neighbors):
-            print(dir_idx, neighbor, link_cls[dir_idx, center[0], center[1]])
+            # print(dir_idx, neighbor, link_neighbors[dir_idx, center[0], center[1]])
             if (neighbor[0] < 0) or (neighbor[0] >= h) or (neighbor[1] < 0) or (neighbor[1] >= w):
                 continue
-            if (pixel_cls[neighbor[0], neighbor[1]] == 1) and (link_cls[dir_idx, center[0], center[1]] == 1):
+            # if (pixel_cls[neighbor[0], neighbor[1]] == 1) and (link_neighbors[dir_idx, center[0], center[1]] == 1):
+            if link_neighbors[dir_idx, neighbor[0], neighbor[1]] == 1:
                 _union(x=center, y=neighbor, parent=parent)
     # set(parent.values())
     # set([i[0] for i in parent.keys()]), set([i[1] for i in parent.keys()])
-    parent[(26, 31)]
+    # parent[(26, 31)]
 
     out = np.zeros(pixel_cls.shape, dtype="int32")
     root_map = dict()
@@ -119,53 +119,49 @@ def mask_to_bbox(
 ):
     """
     pixel_pred:
-        batch_size * 2 * H * W
+        Shape: (2, h, w)
         값이 작을수록 박스는 커짐
     link_pred:
-        batch_size * 16 * H * W
+        Shape: (16, h, w)
         # 값이 작을수록 박스는 커짐
     """
     # mode="2s"
     # area_thresh=100
     # pixel_thresh=0.6
     # link_thresh=0.5
-    batch_size, _, mask_height, mask_width = pixel_pred.shape
+    pixel_cls = pixel_pred[1] > pixel_thresh
+    link_cls = link_pred[8:] > link_thresh
 
-    pixel_pred_temp = pixel_pred[:, 1] > pixel_thresh
-    link_pred_temp = link_pred[:, 8:] > link_thresh
-
+    h, w = pixel_cls.shape
     link_neighbors = torch.zeros(
-        [batch_size, config.N_NEIGHBORS, mask_height, mask_width],
-        dtype=torch.uint8,
-        device=pixel_pred_temp.device,
+        [config.N_NEIGHBORS, h, w], dtype=torch.uint8, device=pixel_cls.device,
     )
     for i in range(config.N_NEIGHBORS):
-        link_neighbors[:, i] = link_pred_temp[:, i] & pixel_pred_temp
+        link_neighbors[i] = link_cls[i] & pixel_cls
 
-    all_bboxes = list()
-    for batch in range(batch_size):
-        seg = _get_seg(pixel_pred_temp[batch], link_neighbors[batch])
-        # _to_pil(_repaint_segmentation_map(seg)).show()
-        n_bboxes = np.max(seg)
+    seg = _get_seg(pixel_cls, link_neighbors)
+    n_bboxes = np.max(seg)
 
-        bboxes = list()
-        for idx in range(1, n_bboxes + 1):
-            box_mask = (seg == idx).astype("uint8")
-            if box_mask.sum() < area_thresh:
-                continue
+    bboxes = list()
+    for idx in range(1, n_bboxes + 1):
+        box_mask = (seg == idx).astype("uint8")
+        if box_mask.sum() < area_thresh:
+            continue
 
-            # _to_pil(_to_3d((box_mask * 255))).show()
-            contours, _ = cv2.findContours(
-                box_mask, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_NONE,
-            )
-            quad = cv2.minAreaRect(contours[0])
-            quad = cv2.boxPoints(quad)
-            # if _filter_short_side(quad):
-            #     continue
+        contours, _ = cv2.findContours(
+            box_mask, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_NONE,
+        )
+        quad = cv2.minAreaRect(contours[0])
+        quad = cv2.boxPoints(quad)
+        quad = np.clip(a=quad, a_min=0, a_max=np.max(quad))
+        # if _filter_short_side(quad):
+        #     continue
 
-            scale = 2 if mode == "2s" else 4
-            quad = (quad * scale).astype("uint16")
-            rect = _quad_to_rect(quad)
-            bboxes.append(rect)
-        all_bboxes.append(bboxes)
-    return all_bboxes
+        scale = 2 if mode == "2s" else 4
+        # quad = (quad * scale).astype("uint16")
+        quad *= scale
+        rect = _quad_to_rect(quad)
+        bboxes.append(rect)
+    # bboxes = pd.DataFrame(bboxes, columns=("l", "t", "r", "b"))
+    bboxes = torch.tensor(bboxes)
+    return bboxes

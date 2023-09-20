@@ -23,7 +23,7 @@ import math
 import filetype
 from tqdm.auto import tqdm
 
-from utils import _pad_input_image, resize_with_thresh, draw_bboxes
+from utils import _pad_input_image, resize_with_thresh
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -250,24 +250,24 @@ class MenuImageDataset(Dataset):
     #     new_image = TF.adjust_saturation(new_image, random.uniform(0.5, 1.5))
     #     return new_image
 
-    def _get_text_seg_map(self, image: Image.Image, bboxes: pd.DataFrame, pos_pixels):
+    def _get_text_seg_map(self, image, bboxes, pos_pixel_mask):
         w, h = image.size
         canvas = torch.zeros(size=(h, w), dtype=torch.long)
         for idx, row in enumerate(bboxes.itertuples(), start=1):
             canvas[row.t: row.b, row.l: row.r] = idx
-        return canvas * pos_pixels
+        return canvas * pos_pixel_mask
 
     def _get_pos_links(self, link_seg_map, pos_pixel_mask, stride=1):
         ls = list()
         for shift in [
             (0, stride), # "Left"
-            (-stride, stride), # "Left-up"
-            (stride, stride), # "Left-down"
+            (-stride, stride), # "Left-down"
+            (stride, stride), # "Left-up"
             (0, -stride), # "Right"
-            (-stride, -stride), # "Right-up"
-            (stride, -stride), # "Right-down"
-            (stride, 0), # "Down"
-            (-stride, 0), # "Up"
+            (-stride, -stride), # "Right-down"
+            (stride, -stride), # "Right-up"
+            (stride, 0), # "Up"
+            (-stride, 0), # "Down"
         ]:
         # for shift in [
         #     (stride, stride), # "Left-up"
@@ -324,7 +324,7 @@ class MenuImageDataset(Dataset):
             pixel_weight.unsqueeze(0), scale_factor=self.scale_factor, mode="nearest",
         )[0]
 
-        link_seg_map = self._get_text_seg_map(image=image, bboxes=bboxes, pos_pixels=pos_pixel_mask)
+        link_seg_map = self._get_text_seg_map(image=image, bboxes=bboxes, pos_pixel_mask=pos_pixel_mask)
         # _to_pil(_repaint_segmentation_map(link_seg_map)).show()
 
         link_gt = self._get_pos_links(
@@ -337,7 +337,8 @@ class MenuImageDataset(Dataset):
 
         image = TF.to_tensor(image)
         image = TF.normalize(image, mean=(0.745, 0.714, 0.681), std=(0.288, 0.300, 0.320))
+        # return image, pixel_gt, link_gt, pixel_weight
         if self.split == "train":
             return image, pixel_gt, link_gt, pixel_weight
         elif self.split == "val":
-            return image, pixel_gt, link_gt, pixel_weight, bboxes, pos_pixel_mask
+            return image, pixel_gt, link_gt, pixel_weight, bboxes

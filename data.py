@@ -16,19 +16,14 @@ import torchvision.transforms as T
 import torchvision.transforms.functional as TF
 from PIL import Image
 import pandas as pd
-import numpy as np
 from pathlib import Path
 import random
-import math
 import filetype
 from tqdm.auto import tqdm
 
 from utils import _pad_input_image, resize_with_thresh
 
 Image.MAX_IMAGE_PIXELS = None
-
-# np.set_printoptions(edgeitems=20, linewidth=220, suppress=False)
-# torch.set_printoptions(edgeitems=4)
 
 
 def _get_path_pairs(data_dir):
@@ -109,6 +104,8 @@ class MenuImageDataset(Dataset):
         size_thresh,
         min_area_thresh,
         max_area_thresh,
+        img_mean,
+        img_std,
         stride=1,
         split="train",
         mode="2s",
@@ -119,6 +116,8 @@ class MenuImageDataset(Dataset):
         self.size_thresh = size_thresh
         self.min_area_thresh = min_area_thresh
         self.max_area_thresh = max_area_thresh
+        self.img_mean = img_mean
+        self.img_std = img_std
         self.split = split
         self.stride = stride
 
@@ -336,7 +335,7 @@ class MenuImageDataset(Dataset):
         )[0].long()
 
         image = TF.to_tensor(image)
-        image = TF.normalize(image, mean=(0.745, 0.714, 0.681), std=(0.288, 0.300, 0.320))
+        image = TF.normalize(image, mean=self.img_mean, std=self.img_std)
         # return image, pixel_gt, link_gt, pixel_weight
         if self.split == "train":
             return image, pixel_gt, link_gt, pixel_weight

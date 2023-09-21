@@ -105,6 +105,8 @@ if __name__ == "__main__":
         size_thresh=config.SIZE_THRESH,
         min_area_thresh=config.MIN_AREA_THRESH,
         max_area_thresh=config.MAX_AREA_THRESH,
+        img_mean=config.IMG_MEAN,
+        img_std=config.IMG_STD,
         split="train",
     )
     train_ds_size = round(len(ds) * 0.9)

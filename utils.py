@@ -56,8 +56,8 @@ def _pad_input_image(image):
     """
     Resize the image so that the width and the height are multiples of 16 each.
     """
-    # _, _, h, w = image.shape
-    w, h = image.size
+    _, _, h, w = image.shape
+    # w, h = image.size
     if h % 16 != 0:
         new_h = h + (16 - h % 16)
     else:
@@ -321,10 +321,13 @@ def segment_pixel_pred(pixel_pred):
     return seg_map
 
 
-def draw_pred_bboxes(image, bboxes):
-    pil_image = _denorm_image(image)
+def draw_bboxes(image, bboxes):
+    # pil_image = _denorm_image(image)
+    pil_image = image.copy()
     draw = ImageDraw.Draw(pil_image)
     for bbox in bboxes:
+        if len(bbox) == 5:
+            bbox = bbox[1:]
         draw.rectangle(xy=bbox, outline="red", width=1)
     pil_image.show()
 

@@ -37,14 +37,13 @@ if __name__ == "__main__":
         stride=config.STRIDE,
     )
     for idx in range(len(ds)):
-        image, pixel_gt, link_gt, pixel_weight = ds[idx]
+        image, pixel_gt, link_gt, pixel_weight, bboxes = ds[idx]
         pixel_pred, link_pred = model(image.unsqueeze(0))
+        pixel_pred.shape
         all_bboxes = mask_to_bbox(
             pixel_pred=pixel_pred,
             link_pred=link_pred,
             pixel_thresh=0.6,
             link_thresh=0.5,
-            # pixel_thresh=0,
-            # link_thresh=0,
         )
         draw_pred_bboxes(image, all_bboxes[0])

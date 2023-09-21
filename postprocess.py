@@ -60,12 +60,8 @@ def _union(x, y, parent):
     #             parent[y_rep] = x_rep
 
 
-def _get_seg(pixel_cls, link_neighbors):
-    # pixel_cls = pixel_pred[0]
-    # link_neighbors = link_neighbors[0]
-    pixel_cls = pixel_cls.detach().cpu().numpy()
-    link_neighbors = link_neighbors.detach().cpu().numpy()
-
+def _get_seg(pixel_cls, link_cls):
+    link_neighbors = pixel_cls & link_cls
     pixel_points = list(zip(*np.where(pixel_cls)))
     parent = dict.fromkeys(pixel_points, -1)
 
@@ -107,10 +103,10 @@ def _filter_short_side(bbox):
 
 
 def _quad_to_rect(quad):
-    l = quad[:, 0].min()
-    t = quad[:, 1].min()
-    r = quad[:, 0].max()
-    b = quad[:, 1].max()
+    l = round(quad[:, 0].min())
+    t = round(quad[:, 1].min())
+    r = round(quad[:, 0].max())
+    b = round(quad[:, 1].max())
     return (l, t, r, b)
 
 
@@ -129,27 +125,28 @@ def mask_to_bbox(
     # area_thresh=100
     # pixel_thresh=0.6
     # link_thresh=0.5
-    pixel_cls = pixel_pred[1] > pixel_thresh
-    link_cls = link_pred[8:] > link_thresh
+    # pixel_pred=pixel_pred[0]
+    # link_pred=link_pred[0]
+    # pixel_pred.shape, link_pred.shape
+    pixel_pred = pixel_pred.detach().cpu().numpy()
+    link_pred = link_pred.detach().cpu().numpy()
 
-    h, w = pixel_cls.shape
-    link_neighbors = torch.zeros(
-        [config.N_NEIGHBORS, h, w], dtype=torch.uint8, device=pixel_cls.device,
-    )
-    for i in range(config.N_NEIGHBORS):
-        link_neighbors[i] = link_cls[i] & pixel_cls
+    pixel_cls = pixel_pred[1, ...] > pixel_thresh
+    link_cls = link_pred[8:, ...] > link_thresh
 
-    seg = _get_seg(pixel_cls, link_neighbors)
-    n_bboxes = np.max(seg)
+    seg = _get_seg(pixel_cls=pixel_cls, link_cls=link_cls)
 
-    bboxes = list()
-    for idx in range(1, n_bboxes + 1):
-        box_mask = (seg == idx).astype("uint8")
+    pred_bboxes = list()
+    for idx in range(1, np.max(seg) + 1):
+        # box_mask = (seg == idx).astype("uint8")
+        box_mask = (seg == idx)
+        conf = round((pixel_pred[1, ...] * box_mask).mean().round(7) * 100_000)
         if box_mask.sum() < area_thresh:
             continue
+        # print(conf)
 
         contours, _ = cv2.findContours(
-            box_mask, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_NONE,
+            box_mask.astype("uint8"), mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_NONE,
         )
         quad = cv2.minAreaRect(contours[0])
         quad = cv2.boxPoints(quad)
@@ -158,10 +155,8 @@ def mask_to_bbox(
         #     continue
 
         scale = 2 if mode == "2s" else 4
-        # quad = (quad * scale).astype("uint16")
         quad *= scale
         rect = _quad_to_rect(quad)
-        bboxes.append(rect)
-    # bboxes = pd.DataFrame(bboxes, columns=("l", "t", "r", "b"))
-    bboxes = torch.tensor(bboxes)
-    return bboxes
+        pred_bboxes.append((conf, *rect))
+    pred_bboxes.sort(reverse=True)
+    return pred_bboxes

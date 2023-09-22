@@ -70,8 +70,11 @@ def _pad_input_image(image):
     return new_image
 
 
-def vis_gt_bboxes(bboxes, image) -> None:
-    pil_image = _denorm_image(image)
+def draw_gt_bboxes(bboxes, image, alpha=0.5) -> None:
+    if isinstance(image, torch.Tensor):
+        pil_image = _denorm_image(image)
+    else:
+        pil_image = image.copy()
     canvas = pil_image.copy()
     draw = ImageDraw.Draw(canvas)
     dic = dict()
@@ -79,7 +82,8 @@ def vis_gt_bboxes(bboxes, image) -> None:
         h = row.b - row.t
         w = row.r - row.l
         smaller = min(w, h)
-        thickness = max(1, smaller // 22)
+        # thickness = max(1, smaller // 22)
+        thickness = 1
 
         dic[row.Index] = ((0, 255, 0), (0, 100, 0), thickness)
 
@@ -91,15 +95,15 @@ def vis_gt_bboxes(bboxes, image) -> None:
             fill=fill,
             width=thickness
         )
-    # for row in bboxes.itertuples():
-    #     outline, _, thickness = dic[row.Index]
-    #     draw.rectangle(
-    #         xy=(row.l, row.t, row.r, row.b),
-    #         outline=outline,
-    #         fill=None,
-    #         width=thickness
-    #     )
-    Image.blend(canvas, pil_image, alpha=0.5).show()
+    for row in bboxes.itertuples():
+        outline, _, thickness = dic[row.Index]
+        draw.rectangle(
+            xy=(row.l, row.t, row.r, row.b),
+            outline=outline,
+            fill=None,
+            width=thickness
+        )
+    return Image.blend(canvas, pil_image, alpha=alpha)
 
 
 def pos_pixel_mask_to_pil(pos_pixel_mask):

@@ -20,7 +20,7 @@ from data import MenuImageDataset, _get_path_pairs, get_bboxes
 from utils import (
     vis_pixel_pred,
     vis_link_pred,
-    vis_gt_bboxes,
+    draw_gt_bboxes,
     draw_bboxes,
     vis_link_gt,
     vis_pos_pixel_mask,
@@ -150,5 +150,5 @@ if __name__ == "__main__":
                         # ls.append((iou, pred_idx, gt_idx))
                         pred_indices
                         gt_indices
-            ls
-            np.argsort([ils)
+            # ls
+            # np.argsort([ils)
